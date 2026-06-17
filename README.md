@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ctrodb docs
 
-## Getting Started
+Documentation site for [ctrodb](https://github.com/ctrotech-tutor/ctrodb) — a reactive, schema-driven client-side database for TypeScript.
 
-First, run the development server:
+Built with [Next.js](https://nextjs.org) and [Fumadocs](https://fumadocs.vercel.app).
+
+## Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Docs engine**: Fumadocs 16
+- **UI**: Shadcn/ui (Radix Nova)
+- **Styling**: Tailwind CSS 4
+- **Content**: MDX with Fumadocs source layer
+
+## Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+```
 
-## Learn More
+Output is in `.next/`.
 
-To learn more about Next.js, take a look at the following resources:
+## Content
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Doc pages live in `content/docs/`. Blog posts are in `app/blog/`. See `source.config.ts` for the Fumadocs configuration.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Auto-deploys to [ctrodb.vercel.app](https://ctrodb.vercel.app) on push to `main`.
