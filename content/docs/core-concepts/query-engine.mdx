@@ -1,0 +1,101 @@
+---
+title: Query Engine
+description: Filter, sort, and paginate records
+---
+
+`QueryBuilder` provides a fluent API for reading data. It does not support joins —
+use [relations](/docs/plugins/relations) for related data.
+
+## Basic usage
+
+```ts
+const results = await collection
+  .query()
+  .where("status", "==", "active")
+  .sort({ createdAt: "desc" })
+  .limit(10)
+  .fetch()
+```
+
+## where
+
+```ts
+query.where(field, operator, value)
+query.where(field, value) // shorthand for ==
+```
+
+Supported operators: `==`, `!=`, `>`, `<`, `>=`, `<=`
+
+```ts
+query.where("age", ">=", 18)
+query.where("status", "active")       // shorthand
+query.where("name", "!=", "admin")
+```
+
+## orWhere
+
+```ts
+query
+  .where("role", "==", "admin")
+  .orWhere((q) => q.where("role", "==", "moderator"))
+```
+
+Groups conditions with OR logic. Each `orWhere` block is one group.
+
+## sort
+
+```ts
+query.sort({ fieldName: "asc" | "desc" })
+```
+
+Only one sort field per query. Passing multiple entries picks the first.
+
+```ts
+query.sort({ createdAt: "desc" })
+```
+
+## limit and offset
+
+```ts
+query.limit(10)
+query.offset(20).limit(10)
+```
+
+Use `offset` with `limit` for pagination. Offset skips records before slicing.
+
+## search
+
+```ts
+query.search("title", "database")
+```
+
+Fuzzy substring search (case-insensitive). Requires the [FTS plugin](/docs/plugins/full-text-search)
+for full-text indexing; falls back to `String.includes()` without it.
+
+## Terminal methods
+
+```ts
+await query.fetch()              // Model<T> & T[]
+await query.first()              // Model<T> & T | undefined
+await query.count()              // number
+await query.toArray()            // T[] (plain objects)
+```
+
+`first()` is equivalent to `.limit(1).fetch()` then returning `results[0]`.
+
+## How queries execute
+
+The `QueryPlanner` examines conditions and indexes to pick a strategy:
+
+| Strategy | When | How |
+|----------|------|-----|
+| `index_scan` | Field has an index | Uses IndexedDB index with key range |
+| `id_lookup` | Querying by `id` field with `==` | Direct adapter lookup |
+| `full_scan` | No index match | Iterates all records, filters in memory |
+
+Sort, offset, and limit are applied in memory after fetching.
+
+## Sorting behavior
+
+Uses JavaScript's `<` and `>` comparison. Mixed types compare via `<`/`>` rules —
+numbers sort numerically, strings lexicographically.

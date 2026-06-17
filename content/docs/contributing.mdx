@@ -1,0 +1,48 @@
+---
+title: Contributing
+description: How to contribute to ctrodb
+---
+
+See the [CONTRIBUTING.md](https://github.com/ctrotech-tutor/ctrodb/blob/main/CONTRIBUTING.md)
+on GitHub for full details.
+
+## Development
+
+```bash
+git clone https://github.com/ctrotech-tutor/ctrodb.git
+cd ctrodb
+npm install
+```
+
+## Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Build + watch mode |
+| `npm run build` | Build library |
+| `npm test` | Run tests |
+| `npm run lint` | Lint source |
+| `npm run typecheck` | TypeScript check |
+
+## Tests
+
+```bash
+npm test
+```
+
+190+ tests across 14 files covering:
+
+- Schema validation (required fields, types, defaults)
+- CRUD operations
+- Query engine (all operators, sort, limit, offset, pagination)
+- Memory and IndexedDB adapters
+- FTS, relations, and validation plugins
+- React hooks
+- Integration tests
+
+## Code style
+
+- TypeScript with strict mode
+- No runtime dependencies
+- Private fields use `#` syntax
+- Exported APIs document types explicitly

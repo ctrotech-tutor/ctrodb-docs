@@ -1,0 +1,92 @@
+---
+title: Relations
+description: belongs_to, has_many, and has_one
+---
+
+The relations plugin enables eager loading and lazy relation getters.
+
+## Setup
+
+```ts
+import { Database, relationsPlugin } from "ctrodb"
+
+const db = new Database({
+  schema: {
+    version: 1,
+    collections: {
+      users: {
+        fields: { name: { type: "string" } },
+        relations: {
+          posts: {
+            type: "has_many",
+            collection: "posts",
+            foreignKey: "userId",
+          },
+        },
+      },
+      posts: {
+        fields: {
+          title: { type: "string" },
+          userId: { type: "number" },
+        },
+        relations: {
+          author: {
+            type: "belongs_to",
+            collection: "users",
+            foreignKey: "userId",
+          },
+        },
+      },
+    },
+  },
+  plugins: [relationsPlugin()],
+})
+```
+
+## Relation types
+
+| Type | Source | Target | Meaning |
+|------|--------|--------|---------|
+| `belongs_to` | Post | User | Post has a `userId` pointing to User |
+| `has_many` | User | Post[] | User has many Posts via `userId` |
+| `has_one` | User | Profile | User has one Profile via `userId` |
+
+## Eager loading
+
+The plugin adds a `.with()` method to collections:
+
+```ts
+const users = await db.collection("users").with("posts").fetch()
+
+for (const user of users) {
+  console.log(user.name, user.posts.length)
+}
+```
+
+Chain multiple relations:
+
+```ts
+db.collection("posts").with("author", "comments")
+```
+
+## Lazy relation getters
+
+Without eager loading, models still have lazy getters:
+
+```ts
+const post = await db.collection("posts").get(1)
+const author = await post.author.first()
+```
+
+Lazy getters return a `QueryBuilder` pre-filtered on the foreign key.
+The `belongs_to` getter filters `target_collection.where("id", "==", this.foreignKey)`.
+The `has_many`/`has_one` getter filters
+`target_collection.where("foreignKey", "==", this.id)`.
+
+## RelationsEngine
+
+```ts
+import { RelationsEngine } from "ctrodb"
+const engine = new RelationsEngine(db)
+await engine.eagerLoad(models, "users", ["posts"])
+```

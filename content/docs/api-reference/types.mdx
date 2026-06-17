@@ -1,0 +1,222 @@
+---
+title: Type Reference
+description: All exported TypeScript types
+---
+
+```ts
+import type {
+  ID,
+  FieldType,
+  FieldDefinition,
+  IndexDefinition,
+  RelationType,
+  RelationDefinition,
+  CollectionSchema,
+  SchemaConfig,
+  QueryOperator,
+  QueryCondition,
+  QueryStrategy,
+  SortSpec,
+  QueryPlan,
+  ChangeType,
+  ChangeEvent,
+  CtroDBPlugin,
+  TransactionContext,
+  StorageAdapter,
+  LogLevel,
+} from "ctrodb"
+```
+
+## ID
+
+```ts
+type ID = number | string
+```
+
+## FieldType
+
+```ts
+type FieldType = "string" | "number" | "boolean" | "object" | "array"
+```
+
+## FieldDefinition
+
+```ts
+interface FieldDefinition {
+  type: FieldType
+  required?: boolean
+  default?: unknown
+  validate?: "email" | "url" | RegExp | ((value: unknown) => boolean)
+  min?: number
+  max?: number
+  maxLength?: number
+  items?: FieldDefinition
+  unique?: boolean
+}
+```
+
+## IndexDefinition
+
+```ts
+interface IndexDefinition {
+  field: string
+  unique?: boolean
+}
+```
+
+## RelationType
+
+```ts
+type RelationType = "has_many" | "belongs_to" | "has_one"
+```
+
+## RelationDefinition
+
+```ts
+interface RelationDefinition {
+  type: RelationType
+  collection: string
+  foreignKey: string
+}
+```
+
+## CollectionSchema
+
+```ts
+interface CollectionSchema {
+  fields: Record<string, FieldDefinition>
+  indexes?: IndexDefinition[]
+  searchable?: string[]
+  relations?: Record<string, RelationDefinition>
+}
+```
+
+## SchemaConfig
+
+```ts
+interface SchemaConfig {
+  version: number
+  collections: Record<string, CollectionSchema>
+}
+```
+
+## QueryOperator
+
+```ts
+type QueryOperator = "==" | "!=" | ">" | "<" | ">=" | "<="
+```
+
+## QueryCondition
+
+```ts
+interface QueryCondition {
+  type: "where" | "search"
+  field: string
+  op?: QueryOperator
+  value: unknown
+}
+```
+
+## QueryStrategy
+
+```ts
+type QueryStrategy = "index_scan" | "full_scan" | "id_lookup"
+```
+
+## SortSpec
+
+```ts
+interface SortSpec {
+  field: string
+  direction: "asc" | "desc"
+}
+```
+
+## QueryPlan
+
+```ts
+interface QueryPlan {
+  strategy: QueryStrategy
+  indexName?: string
+  range?: IDBKeyRange
+  primaryConditions: QueryCondition[]
+  postFilterConditions: QueryCondition[]
+  sort?: SortSpec
+  limit?: number
+  offset?: number
+  groupType: "single" | "or"
+  groups?: QueryPlan[]
+}
+```
+
+## ChangeType
+
+```ts
+type ChangeType = "create" | "update" | "delete"
+```
+
+## ChangeEvent
+
+```ts
+interface ChangeEvent {
+  type: ChangeType
+  collection: string
+  recordId: ID
+  record?: unknown
+  oldRecord?: unknown
+}
+```
+
+## CtroDBPlugin
+
+```ts
+interface CtroDBPlugin {
+  name: string
+  version?: string
+  onDatabaseInit?(db: unknown): void
+  onCollectionInit?(collection: unknown): void
+  onBeforeCreate?(collection: string, data: unknown): unknown
+  onAfterCreate?(collection: string, record: unknown): void
+  onBeforeUpdate?(collection: string, id: ID, changes: unknown): unknown
+  onAfterUpdate?(collection: string, id: ID, record: unknown, oldRecord?: unknown): void
+  onBeforeDelete?(collection: string, id: ID): void
+  onAfterDelete?(collection: string, id: ID, oldRecord?: unknown): void
+}
+```
+
+## TransactionContext
+
+```ts
+interface TransactionContext {
+  collection(name: string): unknown
+}
+```
+
+## StorageAdapter
+
+```ts
+interface StorageAdapter {
+  readonly name: string
+  connect(name: string, schema: SchemaConfig | null): Promise<void>
+  disconnect(): Promise<void>
+  isConnected(): boolean
+  getSchemaVersion(): Promise<number>
+  setSchemaVersion(version: number): Promise<void>
+  create(collection: string, data: unknown): Promise<unknown>
+  findById(collection: string, id: ID): Promise<unknown>
+  findAll(collection: string): Promise<unknown[]>
+  update(collection: string, id: ID, changes: unknown): Promise<unknown>
+  delete(collection: string, id: ID): Promise<void>
+  deleteMany(collection: string, ids: ID[]): Promise<void>
+  scanIndex(collection: string, indexName: string, range: IDBKeyRange | undefined, postFilters: QueryCondition[]): Promise<unknown[]>
+  transaction<T>(fn: (ctx: TransactionContext) => Promise<T>): Promise<T>
+  getMetadata(key: string): Promise<unknown>
+  setMetadata(key: string, value: unknown): Promise<void>
+}
+```
+
+## LogLevel
+
+```ts
+type LogLevel = "debug" | "info" | "warn" | "error" | "silent"
+```

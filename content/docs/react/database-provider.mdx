@@ -1,0 +1,48 @@
+---
+title: DatabaseProvider
+description: React context provider for database access
+---
+
+`DatabaseProvider` makes the database instance available to all hooks in the tree.
+
+## Usage
+
+```tsx
+import { DatabaseProvider, useDatabase } from "ctrodb/react"
+
+const db = new Database({ ... })
+await db.connect()
+
+function App() {
+  return (
+    <DatabaseProvider db={db}>
+      <MyComponent />
+    </DatabaseProvider>
+  )
+}
+
+function MyComponent() {
+  const db = useDatabase()
+  // Access raw db instance
+  return <div>Connected to {db.name}</div>
+}
+```
+
+## Nested providers
+
+Providers can be nested. The innermost provider's database takes precedence.
+
+## useDatabase
+
+Returns the database from context. Throws if no provider is found and no default
+database is set.
+
+```ts
+const db = useDatabase()
+db.collection("todos").get(1)
+```
+
+## How it works
+
+`DatabaseProvider` calls `setDefaultDatabase(db)` and renders a context provider.
+The `useDatabase` hook reads from context first, falling back to the default.

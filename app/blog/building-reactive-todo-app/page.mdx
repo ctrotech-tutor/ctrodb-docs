@@ -1,0 +1,126 @@
+import { BlogHeader } from "@/components/blog-header"
+
+export const title = "Building a Reactive Todo App with ctrodb and React"
+export const description = "Step-by-step guide to building a real-time todo app using useQuery and useMutation"
+export const date = "2026-06-10"
+export const author = "ctrodb team"
+export const tags = ["react", "tutorial", "example"]
+
+export const metadata = {
+  title: "Building a Reactive Todo App with ctrodb and React | ctrodb",
+  description,
+}
+
+<BlogHeader title={title} description={description} date={date} author={author} tags={tags} />
+
+The classic todo app is a good way to see how ctrodb's React hooks work in practice. This post walks through the full implementation.
+
+## Setup
+
+```bash
+npm install ctrodb react react-dom
+```
+
+Create the database with a schema:
+
+```tsx
+import { Database } from "ctrodb"
+import { DatabaseProvider } from "ctrodb/react"
+
+const db = new Database({
+  schema: {
+    version: 1,
+    collections: {
+      todos: {
+        fields: {
+          title: { type: "string", required: true },
+          done: { type: "boolean", default: false },
+          createdAt: { type: "number", default: () => Date.now() },
+        },
+      },
+    },
+  },
+})
+
+await db.connect()
+
+export function App() {
+  return (
+    <DatabaseProvider db={db}>
+      <TodoApp />
+    </DatabaseProvider>
+  )
+}
+```
+
+## The todo list
+
+`useQuery` fetches all todos and re-renders when anything changes in the collection:
+
+```tsx
+import { useQuery, useMutation } from "ctrodb/react"
+
+function TodoList() {
+  const todos = useQuery("todos", (q) =>
+    q.sort({ createdAt: "desc" })
+  )
+  const { update, delete: del } = useMutation("todos")
+
+  return (
+    <ul>
+      {todos.map((todo) => (
+        <li key={todo.id}>
+          <label className={todo.done ? "line-through" : ""}>
+            <input
+              type="checkbox"
+              checked={todo.done}
+              onChange={() => update(todo.id, { done: !todo.done })}
+            />
+            {todo.title}
+          </label>
+          <button onClick={() => del(todo.id)}>x</button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+## Add todo form
+
+```tsx
+function AddTodo() {
+  const { create, loading } = useMutation("todos")
+  const [title, setTitle] = useState("")
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!title.trim()) return
+    await create({ title })
+    setTitle("")
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="What needs to be done?"
+      />
+      <button disabled={loading || !title.trim()}>
+        {loading ? "Adding..." : "Add"}
+      </button>
+    </form>
+  )
+}
+```
+
+## How reactivity works
+
+When `create` is called, ctrodb stores the record and emits a change event. `useQuery` subscribes to these events and re-fetches the data. The component re-renders with the new list — no manual state management needed.
+
+The same flow works for updates and deletes. Every mutation triggers a re-render of every component querying the same collection.
+
+## The complete app
+
+See the [full example](https://github.com/ctrotech-tutor/ctrodb/tree/main/examples/react) in the repo for a more complete version with search and relations.

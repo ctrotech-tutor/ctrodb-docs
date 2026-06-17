@@ -1,0 +1,81 @@
+---
+title: Custom Plugins
+description: Write your own plugins
+---
+
+Any object matching the `CtroDBPlugin` interface can be a plugin.
+
+## Logging plugin
+
+```ts
+import type { CtroDBPlugin } from "ctrodb"
+
+const loggingPlugin: CtroDBPlugin = {
+  name: "logger",
+  onDatabaseInit(db) {
+    console.log(`[ctrodb] Database "${db.name}" initialized`)
+  },
+  onBeforeCreate(collection, data) {
+    console.log(`[ctrodb] Creating in "${collection}"`, data)
+    return data
+  },
+  onAfterCreate(collection, record) {
+    console.log(`[ctrodb] Created ${record.id} in "${collection}"`)
+  },
+  onBeforeDelete(collection, id) {
+    console.log(`[ctrodb] Deleting ${id} from "${collection}"`)
+  },
+}
+```
+
+## Audit plugin
+
+Records every write operation in an `audit_log` collection:
+
+```ts
+const auditPlugin: CtroDBPlugin = {
+  name: "audit",
+  db: null as Database | null,
+
+  onDatabaseInit(db) {
+    this.db = db
+  },
+
+  onAfterCreate(collection, record) {
+    this.db?.collection("audit_log").create({
+      action: "create",
+      collection,
+      recordId: record.id,
+      timestamp: Date.now(),
+    })
+  },
+}
+```
+
+## Encryption plugin
+
+Transforms data before storage and after retrieval:
+
+```ts
+const encryptPlugin: CtroDBPlugin = {
+  name: "encrypt",
+
+  onBeforeCreate(_collection, data) {
+    const record = data as Record<string, unknown>
+    if (record.ssn) {
+      record.ssn = encrypt(record.ssn as string)
+    }
+    return record
+  },
+
+  onAfterCreate(_collection, record) {
+    const rec = record as Record<string, unknown>
+    if (rec.ssn) {
+      rec.ssn = decrypt(rec.ssn as string)
+    }
+  },
+}
+```
+
+Note: since `onBeforeUpdate` returns data that is merged with the existing record,
+be careful to return only the fields that should change.

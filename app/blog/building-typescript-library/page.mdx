@@ -1,0 +1,62 @@
+import { BlogHeader } from "@/components/blog-header"
+
+export const title = "From Alpha to v1.0.0: Building a TypeScript Library"
+export const description = "Lessons learned from building ctrodb — a zero-dependency client-side database"
+export const date = "2026-05-15"
+export const author = "ctrodb team"
+export const tags = ["typescript", "library-design", "open-source"]
+
+export const metadata = {
+  title: "From Alpha to v1.0.0: Building a TypeScript Library | ctrodb",
+  description,
+}
+
+<BlogHeader title={title} description={description} date={date} author={author} tags={tags} />
+
+Building ctrodb through six alpha releases to a stable v1.0.0 taught us a few things about TypeScript library design. Here is what we learned.
+
+## Zero dependencies is a feature
+
+The decision to have zero runtime dependencies shaped the entire architecture. Every feature had to be implemented from scratch or not included. This forced us to:
+
+- Write our own reactive signal implementation (35 lines)
+- Build a custom query planner instead of using a library
+- Keep the bundle small (~25 KB gzip)
+
+Users appreciate not having to audit a deep dependency tree.
+
+## TypeScript as documentation
+
+Exporting proper types is more valuable than writing separate docs for every interface. The `SchemaConfig` type tells you exactly what a schema looks like. The `StorageAdapter` interface shows every method an adapter needs.
+
+We export all public types alongside the classes. Users get autocomplete and type checking without switching between docs and code.
+
+## Testing matters more than features
+
+The test suite grew from 30 tests in alpha.1 to 190 tests in v1.0.0. Every bug fix started with a failing test. The test coverage includes:
+
+- Schema validation edge cases
+- All query operators with various data types
+- Adapter-specific behavior
+- Plugin hook execution order
+- React hook rendering cycles
+
+Integration tests catch issues that unit tests miss. A test that creates, queries, updates, and deletes records in sequence reveals timing and state management bugs.
+
+## The plugin model scales
+
+Instead of building everything into the core, we extracted FTS search, relations, and validation into plugins. The plugin hook interface (before/after create/update/delete) has been stable since alpha.3. All three built-in plugins work together because they operate on different lifecycle hooks.
+
+## Versioning lessons
+
+We went from alpha.1 to alpha.6, then straight to v1.0.0. The jump to stable was possible because:
+
+- The API surface settled after alpha.3
+- Internal refactors did not change public types
+- Test coverage gave confidence
+
+One thing we would do differently: ship the React bindings earlier.
+
+## What is next
+
+Now that v1.0.0 is stable, the focus is on documentation, examples, and community. The API is not expected to change in breaking ways.

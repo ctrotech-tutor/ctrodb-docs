@@ -1,0 +1,49 @@
+---
+title: Model
+description: The record wrapper with methods and relation getters
+---
+
+Every record returned from a collection is wrapped in a `Model<T>` proxy.
+You can access fields directly — no `.get("field")` calls needed.
+
+## Transparent field access
+
+```ts
+const user = await users.get(1)
+console.log(user.name)   // direct field access
+console.log(user.email)  // works for any field
+```
+
+The model is a `Proxy` that forwards property access to the underlying data.
+Direct writes warn you to use `.update()` instead.
+
+## Instance methods
+
+```ts
+await user.update({ name: "New name" })
+await user.delete()
+user.toJSON() // plain object copy
+```
+
+`update()` and `delete()` call back into the collection's CRUD methods.
+
+## Relation getters
+
+When the schema defines relations and the [relations plugin](/docs/plugins/relations) is active,
+the model auto-attaches lazy relation getters:
+
+```ts
+// Schema: { relations: { posts: { type: "has_many", ... } } }
+const user = await users.get(1)
+const posts = await user.posts.fetch()
+```
+
+Each relation getter returns a `QueryBuilder` pre-filtered to match the relation.
+
+## id
+
+```ts
+user.id // string | number
+```
+
+The `id` is a getter on the data — not settable via the proxy.

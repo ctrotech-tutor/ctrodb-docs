@@ -1,0 +1,50 @@
+import { BlogHeader } from "@/components/blog-header"
+
+export const title = "Why Client-Side Databases Matter"
+export const description = "The shift towards local-first applications and what it means for developers"
+export const date = "2026-06-15"
+export const author = "ctrodb team"
+export const tags = ["architecture", "local-first", "web"]
+
+export const metadata = {
+  title: "Why Client-Side Databases Matter | ctrodb",
+  description,
+}
+
+<BlogHeader title={title} description={description} date={date} author={author} tags={tags} />
+
+Ten years ago, most web apps followed the same pattern: the browser was a thin client, the server held all the data, and every user action required a round trip. Today that model is breaking down.
+
+## The latency problem
+
+Users expect instant feedback. Click a button, see a result. No spinners, no loading states. But every network request adds 50-500ms of latency, and that adds up. A database that runs in the same process as your UI cuts that to zero.
+
+## Offline is the default
+
+Mobile users go through tunnels. Desktop users lose WiFi. Progressive web apps need to work without a connection. A client-side database means your app keeps running when the network drops, and syncs when it comes back.
+
+## What ctrodb does differently
+
+Existing client-side storage options each have trade-offs:
+
+- **localStorage**: synchronous, blocking, 5MB limit, strings only
+- **IndexedDB raw**: powerful but verbose, no schema, error-prone
+- **SQLite (via WASM)**: heavy, complex, overkill for most apps
+- **ctrodb**: schema-driven, reactive, zero deps, ~25KB
+
+ctrodb wraps IndexedDB (and memory storage) with a clean TypeScript API. You define your schema, get validation and indexes for free, and react to changes with a simple event system.
+
+## The pattern that works
+
+The most successful local-first apps follow a pattern:
+
+1. **Local database** is the source of truth
+2. **UI renders from local data** — no loading states for reads
+3. **Writes go to local DB first** — instant feedback
+4. **Background sync** pushes to server when connected
+
+ctrodb handles steps 1-3. The sync layer is up to you.
+
+## Where to start
+
+If you are building a new app, try starting with a client-side database and adding server sync later. You will be surprised how much you can build without a backend.

@@ -1,0 +1,115 @@
+---
+title: Collection
+description: Read and write records
+---
+
+A `Collection<T>` maps to a single table or object store. All operations are async.
+
+## Create
+
+```ts
+const record = await collection.create(data: Partial<T>): Promise<Model<T> & T>
+```
+
+- Applies schema defaults
+- Validates against schema
+- Runs `onBeforeCreate` plugin hooks (can modify data)
+- Creates record in adapter
+- Runs `onAfterCreate` plugin hooks
+- Emits a change event
+
+```ts
+const task = await todos.create({ title: "Write docs" })
+console.log(task.id, task.title)
+```
+
+## Read
+
+```ts
+const record = await collection.get(id: ID)
+const all = await collection.getAll()
+```
+
+`get` returns a single record or `undefined`. `getAll` returns every record.
+
+```ts
+const task = await todos.get(1)
+if (task) console.log(task.title)
+```
+
+## Update
+
+```ts
+const updated = await collection.update(id: ID, changes: Partial<T>)
+```
+
+- Merges changes with existing data
+- Validates the merged result
+- Runs `onBeforeUpdate` / `onAfterUpdate` plugin hooks
+- Emits a change event
+
+```ts
+await todos.update(1, { done: true })
+```
+
+## Delete
+
+```ts
+await collection.delete(id: ID)
+await collection.deleteMany(ids: ID[])
+```
+
+- Runs `onBeforeDelete` / `onAfterDelete` plugin hooks
+- Emits a change event for each deleted record
+- `delete` throws if record does not exist
+- `deleteMany` silently skips missing IDs
+
+## Upsert
+
+```ts
+const record = await collection.put(data: T & { id?: ID })
+```
+
+If `data.id` matches an existing record, updates it. Otherwise creates it.
+
+## Count
+
+```ts
+const count = await collection.count()
+```
+
+## Query builder
+
+```ts
+const results = await collection.query()
+  .where("status", "==", "active")
+  .sort({ createdAt: "desc" })
+  .limit(10)
+  .fetch()
+```
+
+See [Query Engine](/docs/core-concepts/query-engine) for details.
+
+## Change subscriptions
+
+```ts
+const unsub = collection.onChange((event) => {
+  console.log(event.type, event.recordId)
+})
+```
+
+Fires on every create, update, or delete in this collection.
+Returns an unsubscribe function.
+
+## Typing
+
+```ts
+interface Task {
+  title: string
+  done: boolean
+}
+
+const tasks = db.collection<Task>("todos")
+const item = await tasks.create({ title: "Typed" })
+// item.title is typed as string
+```

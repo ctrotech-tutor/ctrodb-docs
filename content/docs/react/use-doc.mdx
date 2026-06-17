@@ -1,0 +1,49 @@
+---
+title: useDoc
+description: Fetch a single record by ID
+---
+
+A convenience wrapper around `useQuery` for fetching one record.
+
+## Signature
+
+```ts
+useDoc<T>(
+  collectionName: string,
+  id: ID | undefined,
+): (Model<T> & T) | undefined
+```
+
+## Usage
+
+```tsx
+import { useDoc } from "ctrodb/react"
+
+function TodoDetail({ id }: { id: number }) {
+  const todo = useDoc("todos", id)
+
+  if (!todo) return <div>Loading...</div>
+
+  return (
+    <div>
+      <h2>{todo.title}</h2>
+      <p>Status: {todo.done ? "Done" : "Pending"}</p>
+    </div>
+  )
+}
+```
+
+Returns `undefined` if the id is not provided (e.g., before data loads)
+or if the record does not exist.
+
+## With optional id
+
+```tsx
+function SelectedTodo({ selectedId }: { selectedId?: number }) {
+  const todo = useDoc("todos", selectedId)
+
+  if (!selectedId) return <p>Select a todo</p>
+  if (!todo) return <p>Loading...</p>
+  return <TodoView todo={todo} />
+}
+```

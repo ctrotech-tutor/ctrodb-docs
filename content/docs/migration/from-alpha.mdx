@@ -1,0 +1,33 @@
+---
+title: Migration from Alpha
+description: Changes from alpha releases to v1.0.0
+---
+
+## v1.0.0 stable
+
+The stable release consolidates all alpha changes. The public API is stable
+going forward.
+
+## Changes from alpha.6 to v1.0.0
+
+- Version bumped to `1.0.0` (no breaking changes from alpha.6)
+- `FTSIndexer.search()` returns `ID[]` instead of `Promise<ID[]>`
+- Internal refactors only — no API changes
+
+## Changes from alpha.1 to alpha.6
+
+- `onDatabaseInit` now receives the `Database` instance instead of the adapter
+- `createAdapter()` signature changed — now takes an optional string type
+- `QueryBuilder.search()` moved from a terminal method to a chainable method
+- Plugin hooks now pass `collection` as first parameter for consistency
+- Validation plugin rules receive `collection` and `field` context
+
+## If upgrading from alpha.1
+
+```ts
+// Alpha.1
+db.onDatabaseInit(adapter)
+
+// v1.0.0
+db.onDatabaseInit(db)
+```

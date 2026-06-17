@@ -1,0 +1,96 @@
+---
+title: Collection
+description: API reference for the Collection class
+---
+
+## Constructor
+
+Internal — collections are created by `Database.collection()`.
+
+## Properties
+
+```ts
+collection.name: string
+```
+
+## Methods
+
+### create()
+
+```ts
+create(data: Partial<T>): Promise<Model<T> & T>
+```
+
+Creates a record. Applies defaults, validates schema, runs plugin hooks.
+
+### get()
+
+```ts
+get(id: ID): Promise<(Model<T> & T) | undefined>
+```
+
+Fetches a record by ID. Returns `undefined` if not found.
+
+### getAll()
+
+```ts
+getAll(): Promise<(Model<T> & T)[]>
+```
+
+Returns every record in the collection.
+
+### update()
+
+```ts
+update(id: ID, changes: Partial<T>): Promise<Model<T> & T>
+```
+
+Merges changes into an existing record. Throws if record not found.
+
+### delete()
+
+```ts
+delete(id: ID): Promise<void>
+```
+
+Deletes a record by ID. Throws if record not found.
+
+### deleteMany()
+
+```ts
+deleteMany(ids: ID[]): Promise<void>
+```
+
+Deletes multiple records. Silently skips missing IDs.
+
+### put()
+
+```ts
+put(data: T & { id?: ID }): Promise<Model<T> & T>
+```
+
+Upsert — updates if `id` exists, creates otherwise.
+
+### count()
+
+```ts
+count(): Promise<number>
+```
+
+Returns the total number of records.
+
+### query()
+
+```ts
+query(): QueryBuilder<T>
+```
+
+Returns a new `QueryBuilder` for this collection.
+
+### onChange()
+
+```ts
+onChange(callback: (event: ChangeEvent) => void): () => void
+```
+
+Subscribes to changes on this collection only. Returns an unsubscribe function.

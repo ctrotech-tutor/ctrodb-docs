@@ -1,0 +1,50 @@
+---
+title: Node CLI
+description: A CLI tool using ctrodb in Node
+---
+
+The [Node example](https://github.com/ctrotech-tutor/ctrodb/tree/main/examples/node)
+is a Node.js script that uses ctrodb with the Memory adapter and FTS search.
+
+## Running it
+
+```bash
+node examples/node/index.mjs
+```
+
+## What it shows
+
+- Using ctrodb in Node.js (Memory adapter auto-selected)
+- Schema with validated fields (email format)
+- FTS plugin with searchable fields
+- CRUD operations on `users` and `articles`
+- FTS search on article titles
+
+## Key code
+
+```ts
+import { Database, ftsPlugin } from "ctrodb"
+
+const db = new Database({
+  schema: {
+    version: 1,
+    collections: {
+      articles: {
+        fields: {
+          title: { type: "string" },
+          body: { type: "string" },
+        },
+        searchable: ["title"],
+      },
+    },
+  },
+  plugins: [ftsPlugin()],
+})
+
+await db.connect()
+
+const articles = db.collection("articles")
+await articles.create({ title: "Hello World", body: "..." })
+
+const found = await articles.query().search("title", "hello").fetch()
+```

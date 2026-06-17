@@ -1,0 +1,42 @@
+---
+title: React Setup
+description: Using ctrodb with React
+---
+
+React bindings are included in the main package — no separate install needed.
+
+```ts
+import { useQuery, useDoc, useMutation } from "ctrodb/react"
+```
+
+## DatabaseProvider
+
+Wrap your app to make the database available to hooks:
+
+```tsx
+import { DatabaseProvider } from "ctrodb/react"
+
+const db = new Database({ ... })
+await db.connect()
+
+export default function App() {
+  return (
+    <DatabaseProvider db={db}>
+      <Todos />
+    </DatabaseProvider>
+  )
+}
+```
+
+## setDefaultDatabase
+
+If you cannot use a provider, set the default database globally:
+
+```ts
+import { setDefaultDatabase } from "ctrodb/react"
+
+setDefaultDatabase(db)
+// All hooks will use this database instance
+```
+
+Calling `DatabaseProvider` also calls `setDefaultDatabase` automatically.

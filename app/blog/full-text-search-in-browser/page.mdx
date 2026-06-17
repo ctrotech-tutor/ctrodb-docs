@@ -1,0 +1,95 @@
+import { BlogHeader } from "@/components/blog-header"
+
+export const title = "Full-Text Search in the Browser"
+export const description = "How ctrodb implements client-side full-text search without external services"
+export const date = "2026-06-05"
+export const author = "ctrodb team"
+export const tags = ["search", "fts", "plugins"]
+
+export const metadata = {
+  title: "Full-Text Search in the Browser | ctrodb",
+  description,
+}
+
+<BlogHeader title={title} description={description} date={date} author={author} tags={tags} />
+
+Full-text search is one of those features that feels simple until you implement it. This post explains how ctrodb's FTS plugin works under the hood.
+
+## The naive approach
+
+Without an index, searching means iterating every record and running `String.includes()`:
+
+```ts
+const results = allRecords.filter((r) =>
+  r.title.toLowerCase().includes(query.toLowerCase())
+)
+```
+
+This works for small datasets. For hundreds or thousands of records, it gets slow.
+
+## Token-based indexing
+
+ctrodb's FTS plugin takes a different approach. When a record is created or updated, it extracts tokens from searchable fields and stores a token-to-document mapping:
+
+Token "database" -> [doc1, doc3, doc7]
+Token "schema"   -> [doc1, doc4]
+Token "react"    -> [doc2, doc5]
+
+A search for "database schema" finds docs that have both tokens (AND logic).
+
+## Tokenizer behavior
+
+The tokenizer:
+
+1. Lowercases the input
+2. Splits on non-alphanumeric characters
+3. Removes duplicates
+4. Filters out stop words (a, an, the, and, ...)
+5. Returns unique tokens
+
+```ts
+import { tokenize } from "ctrodb"
+
+tokenize("Hello World! The database")
+// ["hello", "world", "database"]
+```
+
+## Storage strategy
+
+The index lives in a `_ctrodb_fts` collection alongside your data. Each entry is:
+
+```ts
+{
+  id: "articles:database",
+  token: "database",
+  collection: "articles",
+  docIds: [1, 3, 7]
+}
+```
+
+This works with both MemoryAdapter and IndexedDBAdapter.
+
+## Query execution
+
+When you call `.search("title", "database schema")`:
+
+1. The tokenizer splits the query into tokens: `["database", "schema"]`
+2. For each token, the indexer looks up the corresponding entry
+3. Doc IDs that appear in ALL token entry sets are returned
+4. These IDs are passed to the adapter for record retrieval
+
+## Performance characteristics
+
+- **Indexing**: O(tokens per record) — happens on every create/update/delete
+- **Search**: O(tokens in query) — constant time lookups per token
+- **Storage**: O(unique tokens x docs per token) — scales with vocabulary size
+
+## When to use it
+
+The FTS plugin works best for:
+
+- Searchable text fields (titles, descriptions, body content)
+- Datasets up to tens of thousands of records
+- Apps where exact substring matching is sufficient
+
+It does not support fuzzy search, stemming, or relevance scoring. For those, consider a dedicated search service.

@@ -1,0 +1,61 @@
+---
+title: React SPA
+description: A full React app using ctrodb hooks
+---
+
+The [React example](https://github.com/ctrotech-tutor/ctrodb/tree/main/examples/react)
+is a Vite + React SPA demonstrating all major features.
+
+## Running it
+
+```bash
+cd examples/react
+npm install
+npm run dev
+```
+
+## What it shows
+
+### Todo list
+
+Uses `useQuery` and `useMutation` for a real-time todo app with add, toggle, and delete.
+
+### Search demo
+
+Uses `useQuery` with a dynamic search term and the FTS plugin.
+
+### Relations
+
+Creates users and posts with `belongs_to` / `has_many` relations, then uses
+`.with()` for eager loading.
+
+### Tab-based navigation
+
+The app has tabs to switch between the three demos.
+
+## Key pattern
+
+```tsx
+import { useQuery, useMutation } from "ctrodb/react"
+
+function Todos() {
+  const todos = useQuery("todos")
+  const { create, update, delete: del } = useMutation("todos")
+
+  return (
+    <ul>
+      {todos.map((todo) => (
+        <li key={todo.id}>
+          <span
+            className={todo.done ? "done" : ""}
+            onClick={() => update(todo.id, { done: !todo.done })}
+          >
+            {todo.title}
+          </span>
+          <button onClick={() => del(todo.id)}>x</button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```

@@ -1,0 +1,69 @@
+---
+title: useQuery
+description: Reactive data fetching hook
+---
+
+`useQuery` fetches records and re-renders when data changes.
+
+## Signature
+
+```ts
+useQuery<T>(
+  collectionName: string,
+  queryFn?: (q: QueryBuilder<T>) => QueryBuilder<T>,
+  deps?: unknown[],
+): Array<Model<T> & T>
+```
+
+## Basic usage
+
+```tsx
+import { useQuery } from "ctrodb/react"
+
+function TodoList() {
+  const todos = useQuery("todos")
+
+  return (
+    <ul>
+      {todos.map((todo) => (
+        <li key={todo.id}>{todo.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+## With filters
+
+```tsx
+function ActiveTodos() {
+  const todos = useQuery("todos", (q) =>
+    q.where("done", "==", false).sort({ createdAt: "desc" })
+  )
+
+  return <TodoList items={todos} />
+}
+```
+
+## With dynamic deps
+
+```tsx
+function SearchResults({ query }: { query: string }) {
+  const results = useQuery(
+    "articles",
+    (q) => q.search("title", query),
+    [query],
+  )
+
+  return <ResultsList items={results} />
+}
+```
+
+The deps array controls when the query function is re-evaluated.
+
+## How it works
+
+1. Runs the query on mount
+2. Subscribes to change events for the collection
+3. Re-runs the query on every change event
+4. Cleans up subscription on unmount

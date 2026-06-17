@@ -1,0 +1,82 @@
+---
+title: Database
+description: API reference for the Database class
+---
+
+## Constructor
+
+```ts
+new Database(config?: DatabaseConfig)
+```
+
+## Properties
+
+```ts
+db.name: string
+db.isConnected: boolean
+db.adapterName: string
+```
+
+## Methods
+
+### connect()
+
+```ts
+connect(): Promise<void>
+```
+
+Initializes the storage adapter. Idempotent — safe to call multiple times.
+
+### disconnect()
+
+```ts
+disconnect(): Promise<void>
+```
+
+Closes the adapter and clears collection cache. Idempotent.
+
+### collection()
+
+```ts
+collection<T>(name: string): Collection<T>
+```
+
+Returns a cached or new collection for the given name. Throws `ConnectionError`
+if not connected.
+
+### transaction()
+
+```ts
+transaction<T>(fn: (ctx: TransactionContext) => Promise<T>): Promise<T>
+```
+
+Runs `fn` inside an adapter-level transaction. Rolled back on throw.
+
+### on()
+
+```ts
+on(callback: (event: ChangeEvent) => void): () => void
+```
+
+Subscribes to all change events. Returns an unsubscribe function.
+
+### Internal methods
+
+```ts
+db._getSchema(): Schema | null
+db._getAdapter(): StorageAdapter
+```
+
+Underscore-prefixed methods exist for plugin use. Not part of the public API contract.
+
+## DatabaseConfig
+
+```ts
+interface DatabaseConfig {
+  name?: string
+  adapter?: "indexeddb" | "memory" | StorageAdapter
+  schema?: SchemaConfig
+  plugins?: CtroDBPlugin[]
+  logLevel?: "debug" | "info" | "warn" | "error" | "silent"
+}
+```

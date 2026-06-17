@@ -1,0 +1,76 @@
+---
+title: Full-Text Search
+description: Token-based search across string fields
+---
+
+The FTS plugin indexes string fields for fast search queries.
+
+## Setup
+
+```ts
+import { Database, ftsPlugin } from "ctrodb"
+
+const db = new Database({
+  schema: {
+    version: 1,
+    collections: {
+      articles: {
+        fields: {
+          title: { type: "string" },
+          body: { type: "string" },
+        },
+        searchable: ["title", "body"],
+      },
+    },
+  },
+  plugins: [ftsPlugin()],
+})
+```
+
+## How it works
+
+The plugin stores a token-to-document mapping in a `_ctrodb_fts` collection.
+
+**Indexing:**
+- On create/update/delete, tokens are extracted from searchable fields
+- Each token maps to the set of document IDs containing it
+- Tokens are lowercased, deduplicated, and filtered for stop words
+
+**Searching:**
+
+```ts
+const results = await articles
+  .query()
+  .search("body", "database schema")
+  .fetch()
+```
+
+Searches use AND logic — documents must match all query tokens.
+
+## Built-in stop words
+
+Common English words are excluded: a, an, and, are, as, at, be, but, by,
+for, if, in, into, is, it, no, not, of, on, or, such, that, the, their,
+then, there, these, they, this, to, was, will, with.
+
+## Tokenizer
+
+```ts
+import { tokenize } from "ctrodb"
+
+tokenize("Hello World!") // ["hello", "world"]
+```
+
+The tokenizer splits on non-alphanumeric characters and lowercases.
+Duplicates are removed. Stop words are filtered.
+
+## FTSIndexer
+
+For advanced use, you can access the indexer directly:
+
+```ts
+import { FTSIndexer } from "ctrodb"
+
+const indexer = new FTSIndexer(adapter)
+await indexer.search("articles", "database")
+```

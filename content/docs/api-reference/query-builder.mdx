@@ -1,0 +1,88 @@
+---
+title: QueryBuilder
+description: API reference for the QueryBuilder class
+---
+
+## Constructor
+
+Internal — use `collection.query()`.
+
+## Methods
+
+### where()
+
+```ts
+where(field: string, value: unknown): this
+where(field: string, op: string, value: unknown): this
+```
+
+Supported operators: `==`, `!=`, `>`, `<`, `>=`, `<=`.
+
+### orWhere()
+
+```ts
+orWhere(callback: (q: QueryBuilder<T>) => void): this
+```
+
+Groups conditions with OR logic. Multiple `where` calls inside the same
+`orWhere` are AND'd within the group.
+
+### sort()
+
+```ts
+sort(spec: Partial<Record<keyof T, "asc" | "desc">>): this
+```
+
+Only the first entry is used. Example: `query.sort({ createdAt: "desc" })`.
+
+### limit()
+
+```ts
+limit(n: number): this
+```
+
+### offset()
+
+```ts
+offset(n: number): this
+```
+
+### search()
+
+```ts
+search(field: string, query: string): this
+```
+
+Case-insensitive substring search. With FTS plugin, uses the index.
+
+### fetch()
+
+```ts
+fetch(): Promise<(Model<T> & T)[]>
+```
+
+Executes the query and returns results.
+
+### first()
+
+```ts
+first(): Promise<(Model<T> & T) | undefined>
+```
+
+Shortcut for `.limit(1).fetch()` returning `results[0]`.
+
+### count()
+
+```ts
+count(): Promise<number>
+```
+
+Shortcut for `fetch()` returning `results.length`.
+
+### toArray()
+
+```ts
+toArray(): Promise<T[]>
+```
+
+Like `fetch()` but returns plain objects via `.toJSON()`.

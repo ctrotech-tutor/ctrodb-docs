@@ -1,0 +1,51 @@
+---
+title: CDN Todo App
+description: A complete todo app using ctrodb from CDN
+---
+
+The [CDN example](https://github.com/ctrotech-tutor/ctrodb/tree/main/examples/cdn)
+is a single HTML file that uses ctrodb from a script tag.
+
+## Running it
+
+```bash
+npx serve examples/cdn
+# Open http://localhost:3000
+```
+
+## What it shows
+
+- Loading ctrodb from CDN via `<script>` tag
+- Creating a database with schema
+- Adding, toggling, and deleting todos
+- Reactive UI updates via `db.on()`
+
+## Key code
+
+```html
+<script src="https://unpkg.com/ctrodb@latest/dist/index.global.js"></script>
+<script>
+  const { Database } = CtroDB
+
+  const db = new Database({
+    schema: {
+      version: 1,
+      collections: {
+        todos: {
+          fields: {
+            title: { type: "string", required: true },
+            done: { type: "boolean", default: false },
+          },
+        },
+      },
+    },
+  })
+
+  await db.connect()
+
+  // Subscribe to changes
+  db.on((event) => {
+    if (event.collection === "todos") render()
+  })
+</script>
+```

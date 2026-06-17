@@ -1,0 +1,69 @@
+---
+title: Errors
+description: Error classes
+---
+
+All errors extend `CtrodbError`, which extends `Error`.
+
+```ts
+import {
+  CtrodbError,
+  ConnectionError,
+  CollectionNotFoundError,
+  RecordNotFoundError,
+  SchemaError,
+  ValidationError,
+  QueryError,
+} from "ctrodb"
+```
+
+## CtrodbError
+
+Base error class. Sets `this.name = "CtrodbError"`.
+
+## ConnectionError
+
+Thrown when operations are attempted before connecting.
+
+```ts
+new ConnectionError(dbName, reason?)
+// "Failed to connect to database "foo": reason"
+// or "Database "foo" is not connected. Call db.connect()..."
+```
+
+## CollectionNotFoundError
+
+```ts
+new CollectionNotFoundError(name, availableCollections?)
+// 'Collection "users" not found. Available collections: todos, posts'
+```
+
+## RecordNotFoundError
+
+```ts
+new RecordNotFoundError(collection, id)
+// 'Record with id "42" not found in collection "todos".'
+```
+
+## SchemaError
+
+```ts
+new SchemaError(message)
+// Invalid schema configuration.
+```
+
+## ValidationError
+
+```ts
+new ValidationError(collection, field, message, value?)
+// 'Field "email" in collection "users": is required.'
+```
+
+Has `.field`, `.collection`, `.value` properties.
+
+## QueryError
+
+```ts
+new QueryError(message)
+// Query execution error.
+```

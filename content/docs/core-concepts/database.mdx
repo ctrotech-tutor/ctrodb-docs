@@ -1,0 +1,76 @@
+---
+title: Database
+description: The main entry point for ctrodb
+---
+
+`Database` is the top-level object. It manages the connection, schema, collections, and plugins.
+
+## Constructor
+
+```ts
+const db = new Database(config?: DatabaseConfig)
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `name` | `string` | `"ctrodb"` | Database name |
+| `adapter` | `"indexeddb" \| "memory" \| StorageAdapter` | auto | Storage backend |
+| `schema` | `SchemaConfig` | — | Schema definition |
+| `plugins` | `CtrochemicalPlugin[]` | — | Plugin list |
+| `logLevel` | `"debug" \| "info" \| "warn" \| "error" \| "silent"` | — | Log level |
+
+## Connect / Disconnect
+
+```ts
+await db.connect()
+await db.disconnect()
+```
+
+`connect()` initializes the adapter and triggers `onDatabaseInit` on plugins.
+Call once before using collections. `disconnect()` clears all collection caches.
+
+## Properties
+
+```ts
+db.isConnected   // boolean
+db.adapterName   // "memory" | "indexeddb"
+db.name          // string
+```
+
+## Collections
+
+```ts
+const todos = db.collection("todos")
+```
+
+Collections are lazily created — first access initializes a new `Collection<T>`.
+
+## Transactions
+
+```ts
+const result = await db.transaction(async (ctx) => {
+  const col = ctx.collection("todos")
+  return col.findAll()
+})
+```
+
+If the callback throws, all changes are rolled back.
+The transaction context provides raw adapter CRUD methods.
+
+## Change events
+
+```ts
+const unsub = db.on((event) => {
+  console.log(event.type, event.collection, event.recordId)
+})
+
+unsub() // cleanup
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"create" \| "update" \| "delete"` | What happened |
+| `collection` | `string` | Collection name |
+| `recordId` | `number \| string` | Record ID |
+| `record` | `unknown` | New value (create/update) |
+| `oldRecord` | `unknown` | Previous value (update/delete) |

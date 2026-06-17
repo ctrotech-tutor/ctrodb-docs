@@ -1,0 +1,89 @@
+---
+title: Validation
+description: Custom validation rules for create and update
+---
+
+The validation plugin adds custom rules beyond schema-level validation.
+
+## Setup
+
+```ts
+import { Database, validationPlugin } from "ctrodb"
+
+const db = new Database({
+  schema: {
+    version: 1,
+    collections: {
+      users: {
+        fields: {
+          email: { type: "string" },
+          username: { type: "string" },
+        },
+      },
+    },
+  },
+  plugins: [validationPlugin()],
+})
+```
+
+## Built-in rules
+
+| Rule | Checks |
+|------|--------|
+| `email` | Validates email format on all string fields |
+| `url` | Validates URL format on strings starting with http(s) |
+| `noEmptyStrings` | Rejects empty or whitespace-only strings |
+
+## Custom rules
+
+```ts
+const db = new Database({
+  plugins: [
+    validationPlugin([
+      {
+        name: "noAdminUsername",
+        validate(collection, field, value) {
+          if (field === "username" && value === "admin") {
+            return 'Username "admin" is reserved'
+          }
+          return null
+        },
+      },
+    ]),
+  ],
+})
+```
+
+## ValidationRule interface
+
+```ts
+interface ValidationRule {
+  name: string
+  validate(
+    collection: string,
+    field: string,
+    value: unknown,
+    data: Record<string, unknown>,
+  ): string | null
+}
+```
+
+Return `null` for valid, a string error message for invalid.
+
+## How it works
+
+- Runs on `onBeforeCreate` and `onBeforeUpdate` hooks
+- Validates all fields in the data object
+- Checks each field against every registered rule
+- Throws on first failure with all error messages joined
+
+## ValidationEngine
+
+```ts
+import { ValidationEngine } from "ctrodb"
+
+const engine = new ValidationEngine()
+engine.addRule({ name: "positive", validate: (_, __, v) => v > 0 ? null : "must be positive" })
+engine.validate("products", "price", 5, { price: 5 }) // null
+engine.validate("products", "price", -1, { price: -1 }) // "must be positive"
+```

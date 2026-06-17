@@ -1,0 +1,67 @@
+---
+title: Plugin Overview
+description: Extend ctrodb with lifecycle hooks
+---
+
+Plugins hook into database and collection lifecycle events.
+
+## Plugin interface
+
+```ts
+interface CtroDBPlugin {
+  name: string
+  version?: string
+  onDatabaseInit?(db: Database): void
+  onCollectionInit?(collection: Collection): void
+  onBeforeCreate?(collection: string, data: unknown): unknown
+  onAfterCreate?(collection: string, record: unknown): void
+  onBeforeUpdate?(collection: string, id: ID, changes: unknown): unknown
+  onAfterUpdate?(collection: string, id: ID, record: unknown, oldRecord?: unknown): void
+  onBeforeDelete?(collection: string, id: ID): void
+  onAfterDelete?(collection: string, id: ID, oldRecord?: unknown): void
+}
+```
+
+## Hook execution order
+
+For a `create()` call:
+
+1. `onBeforeCreate` — plugins run in order, each can modify data
+2. Schema defaults applied
+3. Schema validation
+4. Adapter creates record
+5. `onAfterCreate` — plugins run in order
+
+For `update()`:
+
+1. `onBeforeUpdate` — plugins can modify changes
+2. Schema validation (merged with existing)
+3. Adapter updates record
+4. `onAfterUpdate`
+
+For `delete()`:
+
+1. `onBeforeDelete`
+2. Adapter deletes record
+3. `onAfterDelete`
+
+## Return values
+
+For `onBeforeCreate` and `onBeforeUpdate`, the return value replaces the data
+if not `undefined`. This lets plugins transform data before it is stored.
+
+## Using plugins
+
+```ts
+import { Database } from "ctrodb"
+import { ftsPlugin, relationsPlugin, validationPlugin } from "ctrodb"
+
+const db = new Database({
+  schema: { ... },
+  plugins: [
+    ftsPlugin(),
+    relationsPlugin(),
+    validationPlugin(),
+  ],
+})
+```

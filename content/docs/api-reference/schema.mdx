@@ -1,0 +1,71 @@
+---
+title: Schema
+description: API reference for the Schema class
+---
+
+## Constructor
+
+```ts
+new Schema(config: SchemaConfig)
+```
+
+Throws `SchemaError` on invalid config (no version, no collections, empty collection,
+index referencing nonexistent field).
+
+## Properties
+
+```ts
+schema.version: number
+schema.collections: Readonly<Record<string, CollectionSchema>>
+```
+
+## Methods
+
+### getIndexes()
+
+```ts
+getIndexes(collectionName: string): IndexDefinition[]
+```
+
+Returns the defined indexes for a collection, or `[]`.
+
+### getRelations()
+
+```ts
+getRelations(collectionName: string): Record<string, RelationDefinition> | undefined
+```
+
+Returns relation definitions for a collection, or `undefined`.
+
+### getSearchableFields()
+
+```ts
+getSearchableFields(collectionName: string): string[]
+```
+
+Returns searchable field names for FTS, or `[]`.
+
+### applyDefaults()
+
+```ts
+applyDefaults(collectionName: string, data: Record<string, unknown>): Record<string, unknown>
+```
+
+Fills in default values for missing fields. Defaults can be functions.
+
+### validate()
+
+```ts
+validate(collectionName: string, data: Record<string, unknown>): void
+```
+
+Throws `ValidationError` on:
+- Missing required fields
+- Type mismatch (including array item types)
+- String exceeds maxLength
+- Number below min or above max
+- Invalid email/URL format
+- Regex failure
+- Undefined fields (not in schema)
+
+The `id` field is exempt from the undefined-field check.

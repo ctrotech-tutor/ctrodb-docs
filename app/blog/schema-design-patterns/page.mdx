@@ -1,0 +1,115 @@
+import { BlogHeader } from "@/components/blog-header"
+
+export const title = "Schema Design Patterns for Client-Side Apps"
+export const description = "Practical patterns for structuring your client-side database schema"
+export const date = "2026-05-28"
+export const author = "ctrodb team"
+export const tags = ["schema", "patterns", "best-practices"]
+
+export const metadata = {
+  title: "Schema Design Patterns for Client-Side Apps | ctrodb",
+  description,
+}
+
+<BlogHeader title={title} description={description} date={date} author={author} tags={tags} />
+
+A good schema makes your app easier to build and maintain. Here are patterns that work well with ctrodb.
+
+## 1. Flat collections over nested documents
+
+ctrodb does not support nested document schemas. Each collection is a flat table. This is intentional — flat structures are easier to query, index, and maintain.
+
+Instead of this:
+
+```ts
+{
+  users: {
+    fields: {
+      name: { type: "string" },
+      posts: { type: "array", items: { ... } }
+    }
+  }
+}
+```
+
+Do this:
+
+```ts
+{
+  users: {
+    fields: { name: { type: "string" } }
+  },
+  posts: {
+    fields: {
+      title: { type: "string" },
+      userId: { type: "number" },
+    },
+    indexes: [{ field: "userId" }]
+  }
+}
+```
+
+Use the relations plugin to connect them.
+
+## 2. Defaults for temporal fields
+
+Timestamps are common enough that defaults should be automatic:
+
+```ts
+createdAt: { type: "number", default: () => Date.now() }
+updatedAt: { type: "number", default: () => Date.now() }
+```
+
+There is no auto-update on mutation — you need to set `updatedAt` manually in your `update` calls.
+
+## 3. Enums via validation
+
+ctrodb does not have a native enum type. Use `validate` with a regex or function:
+
+```ts
+status: {
+  type: "string",
+  validate: (v) => ["active", "archived", "deleted"].includes(v as string)
+}
+```
+
+Or use the validation plugin for more complex rules.
+
+## 4. Unique fields via indexes
+
+Set `unique: true` on an index to prevent duplicates:
+
+```ts
+indexes: [
+  { field: "email", unique: true }
+]
+```
+
+The unique constraint is enforced by IndexedDB's index uniqueness.
+
+## 5. Searchable fields
+
+Mark string fields as `searchable` when you need full-text search:
+
+```ts
+searchable: ["title", "description"]
+```
+
+Only string fields should be marked searchable. The FTS plugin ignores non-string values.
+
+## 6. Version your schema
+
+The `version` field in SchemaConfig triggers IndexedDB migrations:
+
+```ts
+{
+  version: 2,
+  collections: { ... }
+}
+```
+
+Start at version 1 and increment each time you change the schema shape. This ensures IndexedDB creates the correct object stores.
+
+## 7. Keep it small
+
+A client-side database works best with focused collections. A schema with 5-10 collections is easier to manage than one with 50. Split large schemas into separate database instances if needed.

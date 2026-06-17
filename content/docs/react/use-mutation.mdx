@@ -1,0 +1,76 @@
+---
+title: useMutation
+description: Create, update, and delete records with loading/error state
+---
+
+## Signature
+
+```ts
+useMutation<T>(
+  collectionName: string,
+): {
+  create: (data: Partial<T>) => Promise<Model<T> & T>
+  update: (id: ID, changes: Partial<T>) => Promise<Model<T> & T>
+  delete: (id: ID) => Promise<void>
+  loading: boolean
+  error: Error | undefined
+  reset: () => void
+}
+```
+
+## Usage
+
+```tsx
+import { useMutation } from "ctrodb/react"
+
+function AddTodo() {
+  const { create, loading, error, reset } = useMutation("todos")
+  const [title, setTitle] = useState("")
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    try {
+      await create({ title })
+      setTitle("")
+      reset()
+    } catch {
+      // error is set on the mutation object
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input value={title} onChange={(e) => setTitle(e.target.value)} />
+      <button disabled={loading}>
+        {loading ? "Saving..." : "Add"}
+      </button>
+      {error && <p className="error">{error.message}</p>}
+    </form>
+  )
+}
+```
+
+## error and reset
+
+The `error` is set whenever a mutation throws. `reset()` clears both `loading` and `error`.
+Re-throwing from the mutation call does not change error state — errors are already captured.
+
+## Bulk operations
+
+```tsx
+function DeleteAll({ ids }: { ids: number[] }) {
+  const { delete: del, loading } = useMutation("todos")
+
+  async function handleDeleteAll() {
+    for (const id of ids) {
+      await del(id)
+    }
+  }
+
+  return (
+    <button onClick={handleDeleteAll} disabled={loading}>
+      Delete selected
+    </button>
+  )
+}
+```

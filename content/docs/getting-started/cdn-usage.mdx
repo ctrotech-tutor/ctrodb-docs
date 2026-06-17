@@ -1,0 +1,45 @@
+---
+title: CDN Usage
+description: Use ctrodb directly in the browser via script tag
+---
+
+## Unpkg
+
+```html
+<script src="https://unpkg.com/ctrodb@latest/dist/index.global.js"></script>
+<script>
+  const { Database } = CtroDB
+
+  const db = new Database({
+    schema: {
+      version: 1,
+      collections: {
+        notes: {
+          fields: {
+            text: { type: "string" },
+          },
+        },
+      },
+    },
+  })
+
+  await db.connect()
+  const notes = db.collection("notes")
+  await notes.create({ text: "Hello from CDN!" })
+</script>
+```
+
+## jsDelivr
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/ctrodb@latest/dist/index.global.js"></script>
+```
+
+## What works
+
+- All features work from CDN
+- IndexedDB adapter works in all modern browsers
+- Memory adapter works everywhere
+- The full bundle is ~25 KB gzip
+
+See the [CDN example](/docs/examples/cdn-todo) for a complete todo app.

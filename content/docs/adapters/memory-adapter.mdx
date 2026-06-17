@@ -1,0 +1,45 @@
+---
+title: MemoryAdapter
+description: In-memory storage for Node and testing
+---
+
+`MemoryAdapter` stores everything in a `Map`. Data is lost when the process exits.
+
+## How it works
+
+- Each collection is a `Map<ID, Record>`
+- IDs are auto-incrementing numbers (`1`, `2`, `3`, ...)
+- On schema connect, collections are pre-created
+- Transactions take a snapshot and restore on error
+
+## When to use
+
+- Unit and integration tests
+- Server-side rendering
+- CLI tools and scripts
+- Demos and prototyping
+- Node.js environments
+
+## Explicit instantiation
+
+```ts
+import { MemoryAdapter, Database } from "ctrodb"
+
+const db = new Database({
+  adapter: new MemoryAdapter(),
+})
+```
+
+## ID format
+
+Auto-generated IDs are numbers. You can also provide string IDs:
+
+```ts
+await todos.create({ id: "my-custom-id", title: "Custom" })
+```
+
+## Transaction behavior
+
+On transaction start, MemoryAdapter snapshots all maps.
+If the transaction callback throws, the snapshot is restored.
+Nested transactions are not supported.

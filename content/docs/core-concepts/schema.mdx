@@ -1,0 +1,113 @@
+---
+title: Schema
+description: Define the shape of your data
+---
+
+A schema describes the collections, their fields, indexes, and relations.
+
+## SchemaConfig
+
+```ts
+interface SchemaConfig {
+  version: number       // must be a positive integer
+  collections: Record<string, CollectionSchema>
+}
+```
+
+`version` must be a positive integer. `collections` must have at least one entry.
+
+## CollectionSchema
+
+```ts
+interface CollectionSchema {
+  fields: Record<string, FieldDefinition>
+  indexes?: IndexDefinition[]
+  searchable?: string[]
+  relations?: Record<string, RelationDefinition>
+}
+```
+
+## FieldDefinition
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `type` | `"string" \| "number" \| "boolean" \| "object" \| "array"` | Data type |
+| `required` | `boolean` | Throw if missing |
+| `default` | `unknown \| (() => unknown)` | Applied on create if field is undefined |
+| `min` | `number` | Minimum value (number fields) |
+| `max` | `number` | Maximum value (number fields) |
+| `maxLength` | `number` | Max string length |
+| `items` | `FieldDefinition` | Schema for array items |
+| `unique` | `boolean` | Enforce uniqueness via index |
+| `validate` | `"email" \| "url" \| RegExp \| ((value) => boolean)` | Built-in validators |
+
+### Array items
+
+```ts
+tags: {
+  type: "array",
+  items: { type: "string" }
+}
+```
+
+### Default as function
+
+```ts
+createdAt: {
+  type: "number",
+  default: () => Date.now()
+}
+```
+
+## Indexes
+
+```ts
+indexes: [
+  { field: "email", unique: true },
+  { field: "age" }
+]
+```
+
+Indexes speed up queries using the operator `==`, `>`, `<`, `>=`, `<=`.
+Unique indexes prevent duplicates.
+
+## Relations
+
+```ts
+relations: {
+  author: { type: "belongs_to", collection: "users", foreignKey: "userId" },
+  posts: { type: "has_many", collection: "posts", foreignKey: "userId" },
+  profile: { type: "has_one", collection: "profiles", foreignKey: "userId" },
+}
+```
+
+Relations require the [relations plugin](/docs/plugins/relations) to be active.
+
+## Schema methods
+
+```ts
+schema.getIndexes("todos")
+schema.getRelations("posts")
+schema.getSearchableFields("articles")
+schema.applyDefaults("todos", data)
+schema.validate("todos", data)
+```
+
+Built-in validation covers:
+
+- Required fields
+- Type checking (including array item types)
+- String min/max length
+- Number min/max
+- Email and URL format
+- Custom regex patterns
+- Unknown field rejection
+
+```ts
+class SchemaError extends CtrodbError {}
+class ValidationError extends CtrodbError {
+  readonly field: string
+  readonly collection: string
+  readonly value: unknown
+}
+```

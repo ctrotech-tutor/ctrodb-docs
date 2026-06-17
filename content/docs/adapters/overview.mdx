@@ -1,0 +1,68 @@
+---
+title: Adapters Overview
+description: Storage backends
+---
+
+Adapters handle persistence. ctrodb ships with two.
+
+## Built-in adapters
+
+| Adapter | Environment | Persistence |
+|---------|-------------|-------------|
+| `MemoryAdapter` | Node, browser | Not persisted |
+| `IndexedDBAdapter` | Browser only | Persists in IndexedDB |
+
+## Auto-detection
+
+```ts
+const db = new Database()
+// In browser with indexedDB → IndexedDBAdapter
+// In Node or Deno → MemoryAdapter
+```
+
+You can also pick explicitly:
+
+```ts
+import { Database, createAdapter } from "ctrodb"
+
+const db = new Database({
+  adapter: "memory",
+})
+
+// Or pass an adapter instance:
+const db2 = new Database({
+  adapter: new MemoryAdapter(),
+})
+```
+
+## Custom adapters
+
+Any object implementing the `StorageAdapter` interface works:
+
+```ts
+import type { StorageAdapter } from "ctrodb"
+
+class MyAdapter implements StorageAdapter {
+  readonly name = "my-adapter"
+  async connect(name: string, schema: SchemaConfig | null): Promise<void> { ... }
+  async disconnect(): Promise<void> { ... }
+  isConnected(): boolean { ... }
+  // ... implement all required methods
+}
+```
+
+Full [StorageAdapter interface](/docs/api-reference/types) in API reference.
+
+## Transaction API
+
+All adapters implement `transaction<T>(fn)`. If the callback throws, all changes
+are rolled back:
+
+```ts
+await db.transaction(async (ctx) => {
+  const col = ctx.collection("todos")
+  await col.create({ title: "A" })
+  await col.create({ title: "B" })
+  // Both or neither
+})
+```
