@@ -1,29 +1,26 @@
-import { DocsLayout } from "fumadocs-ui/layouts/docs"
-import { pageTree } from "@/lib/source"
+import { Navbar } from "@/components/navbar"
+import { Sidebar } from "@/components/sidebar"
+import { Footer } from "@/components/footer"
+import { getSidebar } from "@/lib/sidebar"
 import type { ReactNode } from "react"
-import { Star } from "lucide-react"
 
-export default function Layout({ children }: { children: ReactNode }) {
+export default function DocsLayout({ children }: { children: ReactNode }) {
+  const groups = getSidebar()
+
   return (
-    <DocsLayout
-      tree={pageTree}
-      nav={{
-        title: "ctrodb",
-      }}
-      githubUrl="https://github.com/ctrotech-tutor/ctrodb"
-      links={[
-        {
-          text: "Blog",
-          url: "/blog",
-        },
-        {
-          icon: <Star className="size-4" />,
-          text: "GitHub",
-          url: "https://github.com/ctrotech-tutor/ctrodb",
-        },
-      ]}
-    >
-      {children}
-    </DocsLayout>
+    <>
+      <Navbar />
+      <div className="mx-auto flex max-w-[90rem]">
+        <aside className="hidden w-64 shrink-0 border-r border-border lg:block">
+          <div className="sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto p-4">
+            <Sidebar groups={groups} />
+          </div>
+        </aside>
+        <main className="min-w-0 flex-1">
+          {children}
+        </main>
+      </div>
+      <Footer />
+    </>
   )
 }

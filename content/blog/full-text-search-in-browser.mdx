@@ -1,17 +1,13 @@
-import { BlogHeader } from "@/components/blog-header"
-
-export const title = "Full-Text Search in the Browser"
-export const description = "How ctrodb implements client-side full-text search without external services"
-export const date = "2026-06-05"
-export const author = "ctrodb team"
-export const tags = ["search", "fts", "plugins"]
-
-export const metadata = {
-  title: "Full-Text Search in the Browser | ctrodb",
-  description,
-}
-
-<BlogHeader title={title} description={description} date={date} author={author} tags={tags} />
+---
+title: "Full-Text Search in the Browser"
+description: "How ctrodb implements client-side full-text search without external services"
+date: 2026-06-05
+author: ctrodb team
+tags:
+  - search
+  - fts
+  - plugins
+---
 
 Full-text search is one of those features that feels simple until you implement it. This post explains how ctrodb's FTS plugin works under the hood.
 
@@ -31,9 +27,11 @@ This works for small datasets. For hundreds or thousands of records, it gets slo
 
 ctrodb's FTS plugin takes a different approach. When a record is created or updated, it extracts tokens from searchable fields and stores a token-to-document mapping:
 
+```
 Token "database" -> [doc1, doc3, doc7]
 Token "schema"   -> [doc1, doc4]
 Token "react"    -> [doc2, doc5]
+```
 
 A search for "database schema" finds docs that have both tokens (AND logic).
 

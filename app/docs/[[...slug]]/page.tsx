@@ -1,42 +1,81 @@
-import { getPage, getPages } from "@/lib/source"
-import { DocsPage, DocsBody } from "fumadocs-ui/page"
+import { getDoc, getAllDocSlugs } from "@/lib/content"
 import { notFound } from "next/navigation"
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb"
+import { TableOfContents } from "@/components/toc"
+import Link from "next/link"
 
-export default async function Page(props: { params: Promise<{ slug?: string[] }> }) {
+export default async function DocPage(props: { params: Promise<{ slug?: string[] }> }) {
   const { slug } = await props.params
-  const page = getPage(slug)
-  if (!page) notFound()
+  const result = await getDoc(slug || ["getting-started", "installation"])
+  if (!result) notFound()
 
-  const Content = page.data.body
+  const { content, frontmatter, toc } = result
+
+  const breadcrumbs = slug
+    ? slug.map((part, i) => ({
+        label: part.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        href: "/docs/" + slug.slice(0, i + 1).join("/"),
+        current: i === slug.length - 1,
+      }))
+    : []
 
   return (
-    <DocsPage
-      toc={page.data.toc}
-      tableOfContent={{ enabled: true }}
-      tableOfContentPopover={{ enabled: true }}
-      breadcrumb={{ enabled: true, includePage: true }}
-      footer={{ enabled: true }}
-    >
-      <DocsBody>
-        <Content />
-      </DocsBody>
-    </DocsPage>
+    <div className="mx-auto flex max-w-[90rem]">
+      <article className="min-w-0 flex-1 px-6 py-10 sm:px-10 lg:px-16">
+        <Breadcrumb className="mb-6">
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/docs/getting-started/installation">Docs</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          {breadcrumbs.map((crumb, i) => (
+            <BreadcrumbItem key={crumb.href}>
+              {crumb.current ? (
+                <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+              ) : (
+                <>
+                  <BreadcrumbLink asChild>
+                    <Link href={crumb.href}>{crumb.label}</Link>
+                  </BreadcrumbLink>
+                  <BreadcrumbSeparator />
+                </>
+              )}
+            </BreadcrumbItem>
+          ))}
+        </Breadcrumb>
+
+        <h1 className="mb-2 text-3xl font-bold tracking-tight">{frontmatter.title}</h1>
+        {frontmatter.description && (
+          <p className="mb-8 text-lg text-muted-foreground">{frontmatter.description}</p>
+        )}
+
+        <div className="prose prose-zinc max-w-none dark:prose-invert">
+          {content}
+        </div>
+      </article>
+
+      <aside className="hidden w-56 shrink-0 xl:block">
+        <div className="sticky top-20 px-4 py-10">
+          <TableOfContents items={toc} />
+        </div>
+      </aside>
+    </div>
   )
 }
 
 export function generateStaticParams() {
-  return getPages().map((page) => ({
-    slug: page.slugs,
+  return getAllDocSlugs().map((slug) => ({
+    slug,
   }))
 }
 
 export async function generateMetadata(props: { params: Promise<{ slug?: string[] }> }) {
   const { slug } = await props.params
-  const page = getPage(slug)
-  if (!page) return undefined
+  const result = await getDoc(slug || ["getting-started", "installation"])
+  if (!result) return undefined
 
-  const title = page.data.title
-  const description = page.data.description
+  const { title, description } = result.frontmatter
 
   return {
     title,
