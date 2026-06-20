@@ -69,8 +69,8 @@ Use `offset` with `limit` for pagination. Offset skips records before slicing.
 query.search("title", "database")
 ```
 
-Fuzzy substring search (case-insensitive). Requires the [FTS plugin](/docs/plugins/full-text-search)
-for full-text indexing; falls back to `String.includes()` without it.
+Case-insensitive substring search (`String.includes()`). The [FTS plugin](/docs/plugins/full-text-search)
+adds an inverted index, accessible via `FTSIndexer.search()`.
 
 ## Terminal methods
 

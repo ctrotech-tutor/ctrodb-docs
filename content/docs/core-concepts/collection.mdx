@@ -61,7 +61,7 @@ await collection.deleteMany(ids: ID[])
 
 - Runs `onBeforeDelete` / `onAfterDelete` plugin hooks
 - Emits a change event for each deleted record
-- `delete` throws if record does not exist
+- `delete` returns normally even if the record does not exist
 - `deleteMany` silently skips missing IDs
 
 ## Upsert

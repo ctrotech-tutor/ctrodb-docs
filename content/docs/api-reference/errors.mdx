@@ -31,21 +31,9 @@ new ConnectionError(dbName, reason?)
 // or "Database "foo" is not connected. Call db.connect()..."
 ```
 
-## CollectionNotFoundError
-
-```ts
-new CollectionNotFoundError(name, availableCollections?)
-// 'Collection "users" not found. Available collections: todos, posts'
-```
-
-## RecordNotFoundError
-
-```ts
-new RecordNotFoundError(collection, id)
-// 'Record with id "42" not found in collection "todos".'
-```
-
 ## SchemaError
+
+Thrown when schema configuration is invalid.
 
 ```ts
 new SchemaError(message)
@@ -54,6 +42,8 @@ new SchemaError(message)
 
 ## ValidationError
 
+Thrown when a record violates field validation rules.
+
 ```ts
 new ValidationError(collection, field, message, value?)
 // 'Field "email" in collection "users": is required.'
@@ -61,9 +51,17 @@ new ValidationError(collection, field, message, value?)
 
 Has `.field`, `.collection`, `.value` properties.
 
-## QueryError
+## Additional classes (not thrown by ctrodb)
+
+These error classes are exported for use in your own code or plugins:
 
 ```ts
+new CollectionNotFoundError(name, availableCollections?)
+// 'Collection "users" not found. Available collections: todos, posts'
+
+new RecordNotFoundError(collection, id)
+// 'Record with id "42" not found in collection "todos".'
+
 new QueryError(message)
 // Query execution error.
 ```

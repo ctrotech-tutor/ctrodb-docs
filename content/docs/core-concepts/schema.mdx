@@ -33,7 +33,7 @@ interface CollectionSchema {
 |--------|------|-------------|
 | `type` | `"string" \| "number" \| "boolean" \| "object" \| "array"` | Data type |
 | `required` | `boolean` | Throw if missing |
-| `default` | `unknown \| (() => unknown)` | Applied on create if field is undefined |
+| `default` | `unknown` (functions supported at runtime) | Applied on create if field is undefined |
 | `min` | `number` | Minimum value (number fields) |
 | `max` | `number` | Maximum value (number fields) |
 | `maxLength` | `number` | Max string length |
@@ -97,7 +97,7 @@ Built-in validation covers:
 
 - Required fields
 - Type checking (including array item types)
-- String min/max length
+- String max length
 - Number min/max
 - Email and URL format
 - Custom regex patterns

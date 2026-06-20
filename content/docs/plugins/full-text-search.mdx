@@ -36,7 +36,9 @@ The plugin stores a token-to-document mapping in a `_ctrodb_fts` collection.
 - Each token maps to the set of document IDs containing it
 - Tokens are lowercased, deduplicated, and filtered for stop words
 
-**Searching:**
+## Basic search (substring matching)
+
+Without the FTS index, `.search()` does case-insensitive substring matching:
 
 ```ts
 const results = await articles
@@ -45,7 +47,22 @@ const results = await articles
   .fetch()
 ```
 
-Searches use AND logic — documents must match all query tokens.
+This checks if the `body` field contains the string "database schema" anywhere — it does **not** use the tokenized FTS index.
+
+## Indexed search (FTSIndexer)
+
+To use the inverted index directly:
+
+```ts
+import { FTSIndexer } from "ctrodb"
+
+const indexer = new FTSIndexer(adapter)
+const ids = await indexer.search("articles", "database schema")
+// ids contains IDs of documents matching ALL tokens (AND logic)
+```
+
+`FTSIndexer.search()` tokenizes the query and returns only document IDs
+that contain every token. This is true tokenized AND search.
 
 ## Built-in stop words
 
@@ -63,14 +80,3 @@ tokenize("Hello World!") // ["hello", "world"]
 
 The tokenizer splits on non-alphanumeric characters and lowercases.
 Duplicates are removed. Stop words are filtered.
-
-## FTSIndexer
-
-For advanced use, you can access the indexer directly:
-
-```ts
-import { FTSIndexer } from "ctrodb"
-
-const indexer = new FTSIndexer(adapter)
-await indexer.search("articles", "database")
-```

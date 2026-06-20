@@ -53,7 +53,7 @@ Merges changes into an existing record. Throws if record not found.
 delete(id: ID): Promise<void>
 ```
 
-Deletes a record by ID. Throws if record not found.
+Deletes a record by ID. Returns normally even if the record does not exist.
 
 ### deleteMany()
 

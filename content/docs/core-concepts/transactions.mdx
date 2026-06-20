@@ -77,7 +77,21 @@ console.log(ids) // [1, 2]
 
 ## Adapter behavior
 
-- **MemoryAdapter**: takes a snapshot before the transaction runs, restores it on error
-- **IndexedDBAdapter**: uses native `IDBTransaction`, calls `tx.abort()` on error
+- **IndexedDBAdapter**: uses native `IDBTransaction`, calls `tx.abort()` on error. `ctx.collection(name)` returns bound methods (`findAll()`, `findById()`, `create()`, etc.) — no collection name parameter needed.
+- **MemoryAdapter**: takes a snapshot before the transaction runs, restores it on error. `ctx.collection(name)` returns the raw adapter, so you must pass the collection name to each method: `adapter.findAll("todos")`, `adapter.create("todos", data)`.
+
+```ts
+// IndexedDB — bound methods
+await db.transaction(async (ctx) => {
+  const todos = ctx.collection("todos")
+  await todos.create({ title: "A" })
+})
+
+// Memory — raw adapter with collection name
+await db.transaction(async (ctx) => {
+  const adapter = ctx.collection("todos")
+  await adapter.create("todos", { title: "A" })
+})
+```
 
 No nesting support — calling `db.transaction()` inside a transaction starts a new independent transaction.

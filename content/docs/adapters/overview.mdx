@@ -56,16 +56,25 @@ Full [StorageAdapter interface](/docs/api-reference/types) in API reference.
 ## Transaction API
 
 All adapters implement `transaction<T>(fn)`. If the callback throws, all changes
-are rolled back:
+are rolled back. See the [Transactions guide](/docs/core-concepts/transactions)
+for details.
+
+**IndexedDBAdapter**: `ctx.collection(name)` returns bound methods — call methods
+without passing the collection name.
+
+**MemoryAdapter**: `ctx.collection(name)` returns the raw adapter — pass the
+collection name to each method.
 
 ```ts
+// IndexedDB
 await db.transaction(async (ctx) => {
   const todos = ctx.collection("todos")
   await todos.create({ title: "A" })
-  await todos.create({ title: "B" })
-  // Both or neither
+})
+
+// Memory adapter
+await db.transaction(async (ctx) => {
+  const adapter = ctx.collection("todos")
+  await adapter.create("todos", { title: "A" })
 })
 ```
-
-See the [Transactions guide](/docs/core-concepts/transactions) for details on
-the transaction context API.

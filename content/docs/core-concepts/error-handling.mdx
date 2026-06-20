@@ -10,12 +10,11 @@ ctrodb throws typed errors for common failure scenarios. All custom errors exten
 ```
 CtrodbError
 ├── ConnectionError
-├── CollectionNotFoundError
-├── RecordNotFoundError
 ├── SchemaError
 ├── ValidationError
-└── QueryError
 ```
+
+Additional error classes (`CollectionNotFoundError`, `RecordNotFoundError`, `QueryError`) exist in the library but are not currently thrown by ctrodb's built-in operations — they're available for your own use or plugin development.
 
 ## Catching errors
 
@@ -23,7 +22,6 @@ CtrodbError
 import {
   CtrodbError,
   ConnectionError,
-  RecordNotFoundError,
   ValidationError,
 } from "ctrodb"
 
@@ -56,37 +54,14 @@ try {
 
 Can also include a custom reason passed to the constructor.
 
-## CollectionNotFoundError
-
-Thrown when a collection doesn't exist. If a list of available collections is provided, it's included in the message.
-
-```ts
-// If schema constrains collections and you request an unknown one
-```
-
-## RecordNotFoundError
-
-Thrown when `update()` or `delete()` targets a record that doesn't exist.
-
-```ts
-try {
-  await notes.update(999, { title: "Nope" })
-} catch (e) {
-  if (e instanceof RecordNotFoundError) {
-    // "Record with id '999' not found in collection 'notes'."
-  }
-}
-```
-
-Note: `get()` returns `undefined` instead of throwing. `deleteMany()` silently skips missing IDs.
-
 ## SchemaError
 
 Thrown when the schema configuration is invalid.
 
 ```ts
-// Missing required fields in schema definition
-// Conflicting index definitions
+// Missing version number
+// No collections defined
+// Index referencing a non-existent field
 ```
 
 ## ValidationError
@@ -118,32 +93,30 @@ try {
 }
 ```
 
-## QueryError
+## Additional error classes
 
-Thrown when a query is malformed — for example, referencing an invalid field or operator.
+These classes are exported and constructable but not thrown by ctrodb itself:
 
-```ts
-try {
-  await todos.query().where("nonexistent", ">=", 10).fetch()
-} catch (e) {
-  if (e instanceof QueryError) { ... }
-}
-```
+- `CollectionNotFoundError(name, availableCollections?)` — for schema-constrained lookups
+- `RecordNotFoundError(collection, id)` — for record-level lookups
+- `QueryError(message)` — for malformed queries
+
+You can use them in your own code or plugins for consistent error types.
 
 ## Log levels
 
-Control verbosity with the `logLevel` config option:
+`logLevel` is accepted in `DatabaseConfig` and reserved for future use:
 
-| Level | Description |
-|-------|-------------|
+```ts
+const db = new Database({
+  logLevel: "warn",
+})
+```
+
+| Level | Intended behavior (not yet implemented) |
+|-------|-----------------------------------------|
 | `"debug"` | All internal operations logged |
 | `"info"` | Major lifecycle events (connect, disconnect) |
 | `"warn"` | Recoverable issues (blocked IDB) |
 | `"error"` | Failures and exceptions |
 | `"silent"` | No logging |
-
-```ts
-const db = new Database({
-  logLevel: "warn", // only warnings and errors
-})
-```
