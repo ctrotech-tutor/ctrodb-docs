@@ -50,14 +50,14 @@ const pending = await todos
   .fetch()
 ```
 
-Every record is a Model with typed field access. Update a record, and any React component using `useQuery` re-renders automatically. Open the same app in two tabs, and changes sync through IndexedDB — no WebSocket needed.
+Every record is a Model with typed field access. Update a record, and any React component using `useQuery` re-renders automatically.
 
 ## When it makes sense
 
 Client-side databases aren't for everything. But they shine for:
 
 - **Offline-first apps** — notes, tasks, journaling tools
-- **Real-time collaboration** — share data across tabs without a server
+- **Local-first architecture** — data lives in the browser, sync with a server when needed
 - **Search-heavy UIs** — full-text search indexes can live on the client
 - **Form-heavy apps** — multi-step forms, draft-saving, autosave
 - **Prototypes** — skip the backend entirely during early development

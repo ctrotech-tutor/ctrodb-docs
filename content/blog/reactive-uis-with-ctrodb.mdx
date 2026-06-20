@@ -190,29 +190,6 @@ ctrodb's reactive hooks are designed to be efficient:
 - **Query comparison**: The query function is only re-executed when its dependencies change.
 - **Model identity**: Models are compared by reference — the same logical record returns the same object reference across re-fetches when possible.
 
-## Example: Real-Time Collaborative Counter
-
-Here's a minimal live counter that syncs across tabs (via IndexedDB):
-
-```tsx
-function Counter() {
-  const { count, increment } = useCounter()
-
-  const items = useQuery("counter", (q) => q.limit(1))
-
-  return (
-    <div>
-      <p>Count: {items[0]?.value ?? 0}</p>
-      <button onClick={() => items[0]?.update({ value: items[0].value + 1 })}>
-        +
-      </button>
-    </div>
-  )
-}
-```
-
-Because IndexedDB is shared across browser tabs, changes in one tab automatically appear in another.
-
 ## Summary
 
 ctrodb's React hooks eliminate boilerplate around data fetching, subscriptions, and mutation state:

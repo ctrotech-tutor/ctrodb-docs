@@ -138,10 +138,6 @@ const unsubscribe = db.on((event) => {
 
 `useQuery` subscribes to the database signal, checks if the event's collection matches, and re-fetches. That's the entire reactivity chain — no virtual DOM diffing, no selector memoization, no middleware.
 
-## Cross-tab sync
-
-Because IndexedDB is shared across browser tabs, changes in one tab appear automatically in another. Open the same app in two windows, add a todo in one — it shows up in the other instantly. No WebSocket, no BroadcastChannel, no server.
-
 ## What this replaces
 
 I used to reach for Redux or Zustand for every app that needed shared state. Now I reach for them less and less. If the data can live in IndexedDB, it lives in the database. The React hooks handle the rest.

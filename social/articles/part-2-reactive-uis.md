@@ -149,26 +149,6 @@ const unsub = collection.onChange((event) => {
 
 `useQuery` subscribes to the database signal, checks if the event's collection matches, and re-fetches if it does. That's the entire reactivity chain.
 
-## Cross-tab synchronization
-
-Because IndexedDB is shared across browser tabs, changes in one tab appear automatically in others:
-
-```tsx
-function Counter() {
-  const items = useQuery("counter", (q) => q.limit(1))
-  return (
-    <div>
-      <p>Count: {items[0]?.value ?? 0}</p>
-      <button onClick={() => items[0]?.update({ value: items[0].value + 1 })}>
-        +
-      </button>
-    </div>
-  )
-}
-```
-
-Open the same app in two windows. Tap the button in one—the count updates in both. No WebSocket, no BroadcastChannel, no server. Just IndexedDB's cross-tab persistence.
-
 ## SSR considerations
 
 `useQuery` returns an empty array during SSR and hydrates on the client. Wrap database-dependent components in a client boundary:

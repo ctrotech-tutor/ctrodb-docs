@@ -61,7 +61,7 @@ Plus React hooks (separate import, same package):
 import { DatabaseProvider, useQuery, useMutation } from "ctrodb/react"
 ```
 
-Signal-based reactivity. When data changes, `useQuery` re-fetches and your UI updates. No Redux, no Zustand, no manual subscriptions. Cross-tab sync works automatically through IndexedDB.
+Signal-based reactivity. When data changes, `useQuery` re-fetches and your UI updates. No Redux, no Zustand, no manual subscriptions.
 
 ## Why zero dependencies
 
