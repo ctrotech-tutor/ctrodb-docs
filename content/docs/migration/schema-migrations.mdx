@@ -7,7 +7,7 @@ As your application grows, you'll need to add fields, change validation rules, o
 
 ## Schema version
 
-Each schema has a `version` number. This is used by the IndexedDB adapter to trigger database upgrades.
+Each schema has a `version{:ts}` number. This is used by the IndexedDB adapter to trigger database upgrades.
 
 ```ts
 const schema = {
@@ -47,7 +47,7 @@ Defaults are applied at write time (when creating or updating records), not retr
 
 ## Adding indexes
 
-Indexes are created during `db.connect()`. New indexes only apply to the IndexedDB adapter:
+Indexes are created during `db.connect(){:ts}`. New indexes only apply to the IndexedDB adapter:
 
 ```ts
 const schema = {
@@ -73,7 +73,7 @@ ctrodb does not automatically remove data from existing records when you remove 
 
 ## Manual data migration
 
-For complex migrations, run a script after `db.connect()`:
+For complex migrations, run a script after `db.connect(){:ts}`:
 
 ```ts
 const db = new Database({ schema })
@@ -98,4 +98,4 @@ When using the IndexedDB adapter, the `schema.version` field maps directly to th
 
 ## Memory adapter
 
-The Memory adapter does not persist between sessions, so versioning matters less. `getSchemaVersion()` and `setSchemaVersion()` work against in-memory metadata.
+The Memory adapter does not persist between sessions, so versioning matters less. `getSchemaVersion(){:ts}` and `setSchemaVersion(){:ts}` work against in-memory metadata.

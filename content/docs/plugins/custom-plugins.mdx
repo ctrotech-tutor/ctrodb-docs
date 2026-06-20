@@ -3,7 +3,7 @@ title: Custom Plugins
 description: Write your own plugins
 ---
 
-Any object matching the `CtroDBPlugin` interface can be a plugin.
+Any object matching the `CtroDBPlugin{:ts}` interface can be a plugin.
 
 ## Logging plugin
 
@@ -77,5 +77,5 @@ const encryptPlugin: CtroDBPlugin = {
 }
 ```
 
-Note: since `onBeforeUpdate` returns data that is merged with the existing record,
+Note: since `onBeforeUpdate{:ts}` returns data that is merged with the existing record,
 be careful to return only the fields that should change.

@@ -14,7 +14,7 @@ interface SchemaConfig {
 }
 ```
 
-`version` must be a positive integer. `collections` must have at least one entry.
+`version{:ts}` must be a positive integer. `collections{:ts}` must have at least one entry.
 
 ## CollectionSchema
 
@@ -31,15 +31,15 @@ interface CollectionSchema {
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `type` | `"string" \| "number" \| "boolean" \| "object" \| "array"` | Data type |
-| `required` | `boolean` | Throw if missing |
-| `default` | `unknown` (functions supported at runtime) | Applied on create if field is undefined |
-| `min` | `number` | Minimum value (number fields) |
-| `max` | `number` | Maximum value (number fields) |
-| `maxLength` | `number` | Max string length |
-| `items` | `FieldDefinition` | Schema for array items |
-| `unique` | `boolean` | Enforce uniqueness via index |
-| `validate` | `"email" \| "url" \| RegExp \| ((value) => boolean)` | Built-in validators |
+| `type{:ts}` | `"string" \| "number" \| "boolean" \| "object" \| "array"{:ts}` | Data type |
+| `required{:ts}` | `boolean{:ts}` | Throw if missing |
+| `default{:ts}` | `unknown{:ts}` (functions supported at runtime) | Applied on create if field is undefined |
+| `min{:ts}` | `number{:ts}` | Minimum value (number fields) |
+| `max{:ts}` | `number{:ts}` | Maximum value (number fields) |
+| `maxLength{:ts}` | `number{:ts}` | Max string length |
+| `items{:ts}` | `FieldDefinition{:ts}` | Schema for array items |
+| `unique{:ts}` | `boolean{:ts}` | Enforce uniqueness via index |
+| `validate{:ts}` | `"email" \| "url" \| RegExp \| ((value) => boolean){:ts}` | Built-in validators |
 
 ### Array items
 

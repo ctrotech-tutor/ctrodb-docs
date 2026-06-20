@@ -3,18 +3,18 @@ title: IndexedDBAdapter
 description: Persistent storage for browsers
 ---
 
-`IndexedDBAdapter` uses the browser's IndexedDB API. Data persists across sessions.
+`IndexedDBAdapter{:ts}` uses the browser's IndexedDB API. Data persists across sessions.
 
 ## How it works
 
-- Each collection is an object store with `id` as keyPath
+- Each collection is an object store with `id{:ts}` as keyPath
 - Auto-increment is handled by IndexedDB
-- Indexes are created during migration (`onupgradeneeded`)
-- A `_ctrodb_meta` store holds schema version and metadata
+- Indexes are created during migration (`onupgradeneeded{:js}`)
+- A `_ctrodb_meta{:ts}` store holds schema version and metadata
 
 ## Schema migration
 
-When you change the schema version, IndexedDB fires `onupgradeneeded`.
+When you change the schema version, IndexedDB fires `onupgradeneeded{:js}`.
 The adapter creates new object stores and indexes:
 
 ```ts
@@ -36,12 +36,12 @@ New collections and indexes are added. Existing data is preserved.
 ## Browser support
 
 All modern browsers (Chrome, Firefox, Safari, Edge) support IndexedDB.
-The adapter checks for `window.indexedDB` at runtime.
+The adapter checks for `window.indexedDB{:js}` at runtime.
 
 ## Transaction behavior
 
-Uses `IDBTransaction` with `readwrite` mode across all object stores.
-If the callback throws, `tx.abort()` is called.
+Uses `IDBTransaction{:ts}` with `readwrite{:txt}` mode across all object stores.
+If the callback throws, `tx.abort(){:ts}` is called.
 
 ## Limitations
 

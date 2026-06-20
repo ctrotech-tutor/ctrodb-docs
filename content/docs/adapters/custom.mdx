@@ -3,7 +3,7 @@ title: Custom Adapters
 description: Building custom storage backends for ctrodb
 ---
 
-Any object implementing the `StorageAdapter` interface can serve as a ctrodb backend. This lets you persist data anywhere — REST APIs, localStorage, SQLite (via Node), WebSockets, or your own custom storage engine.
+Any object implementing the `StorageAdapter{:ts}` interface can serve as a ctrodb backend. This lets you persist data anywhere — REST APIs, localStorage, SQLite (via Node), WebSockets, or your own custom storage engine.
 
 ## StorageAdapter Interface
 
@@ -86,7 +86,7 @@ await db.connect()
 
 ## Using createAdapter
 
-`createAdapter()` is a convenience factory for the built-in adapters:
+`createAdapter(){:ts}` is a convenience factory for the built-in adapters:
 
 ```ts
 import { createAdapter } from "ctrodb"
@@ -115,7 +115,7 @@ const db = new Database({
 
 ## Transaction support
 
-Adapters must implement `transaction<T>(fn)`. The `TransactionContext` provides collection-scoped CRUD methods:
+Adapters must implement `transaction<T>(fn){:ts}`. The `TransactionContext{:ts}` provides collection-scoped CRUD methods:
 
 ```ts
 class MyTransactionContext implements TransactionContext {
@@ -144,7 +144,7 @@ async transaction<T>(fn: (ctx: TransactionContext) => Promise<T>): Promise<T> {
 
 ## scanIndex
 
-The `scanIndex` method handles indexed lookups. It receives the collection name, index name, an optional `IDBKeyRange`, and post-filter conditions. For simple in-memory adapters you can use a full scan:
+The `scanIndex` method handles indexed lookups. It receives the collection name, index name, an optional `IDBKeyRange{:ts}`, and post-filter conditions. For simple in-memory adapters you can use a full scan:
 
 ```ts
 async scanIndex(
@@ -190,7 +190,7 @@ async scanIndex(
 
 ## Metadata methods
 
-`getMetadata` / `setMetadata` are used to store internal state (schema version, etc.):
+`getMetadata{:ts}` / `setMetadata{:ts}` are used to store internal state (schema version, etc.):
 
 ```ts
 async getMetadata(key: string): Promise<unknown> {

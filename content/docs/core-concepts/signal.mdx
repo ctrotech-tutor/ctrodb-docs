@@ -3,7 +3,7 @@ title: Signal
 description: Reactive state primitive used by ctrodb's change notification system
 ---
 
-`Signal` is a lightweight observable value container. ctrodb uses it internally for change events, and you can use it directly for reactive state management.
+`Signal{:ts}` is a lightweight observable value container. ctrodb uses it internally for change events, and you can use it directly for reactive state management.
 
 ## Creating a Signal
 
@@ -69,7 +69,7 @@ function Avatar() {
 
 ## How ctrodb uses Signal
 
-The `Database.on()` method is powered by a Signal:
+The `Database.on(){:ts}` method is powered by a Signal:
 
 ```ts
 // Internal — Signal<ChangeEvent | null>
@@ -87,9 +87,9 @@ on(callback) {
 
 | Method / Property | Signature | Description |
 |---|---|---|
-| `constructor()` | `new Signal<T>(initialValue)` | Creates a signal with initial value |
-| `value` (get) | `T` | Returns current value |
-| `value` (set) | `T` | Sets value and notifies subscribers (skips if unchanged) |
-| `subscribe()` | `(fn: (value: T) => void) => () => void` | Subscribes to changes, returns unsubscribe |
-| `hasSubscriptions` | `boolean` | Whether any subscribers exist |
-| `listenerCount` | `number` | Number of subscribers |
+| `constructor(){:ts}` | `new Signal<T>(initialValue){:ts}` | Creates a signal with initial value |
+| `value{:ts}` (get) | `T{:ts}` | Returns current value |
+| `value{:ts}` (set) | `T{:ts}` | Sets value and notifies subscribers (skips if unchanged) |
+| `subscribe(){:ts}` | `(fn: (value: T) => void) => () => void{:ts}` | Subscribes to changes, returns unsubscribe |
+| `hasSubscriptions{:ts}` | `boolean{:ts}` | Whether any subscribers exist |
+| `listenerCount{:ts}` | `number{:ts}` | Number of subscribers |

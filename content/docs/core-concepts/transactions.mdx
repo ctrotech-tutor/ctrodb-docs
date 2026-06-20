@@ -20,17 +20,17 @@ Both creates succeed together, or neither is applied.
 
 ## TransactionContext API
 
-Inside a transaction callback, `ctx.collection(name)` returns a bound collection with raw CRUD methods:
+Inside a transaction callback, `ctx.collection(name){:ts}` returns a bound collection with raw CRUD methods:
 
 | Method | Signature | Description |
 |---|---|---|
-| `findAll` | `() => Promise<T[]>` | All records in the collection |
-| `findById` | `(id: ID) => Promise<T \| undefined>` | Single record by ID |
-| `create` | `(data: Partial<T>) => Promise<T & { id: ID }>` | Create a new record |
-| `update` | `(id: ID, changes: Partial<T>) => Promise<T & { id: ID }>` | Update an existing record |
-| `delete` | `(id: ID) => Promise<void>` | Delete a record |
+| `findAll{:ts}` | `() => Promise<T[]>{:ts}` | All records in the collection |
+| `findById{:ts}` | `(id: ID) => Promise<T \| undefined>{:ts}` | Single record by ID |
+| `create{:ts}` | `(data: Partial<T>) => Promise<T & { id: ID }>{:ts}` | Create a new record |
+| `update{:ts}` | `(id: ID, changes: Partial<T>) => Promise<T & { id: ID }>{:ts}` | Update an existing record |
+| `delete{:ts}` | `(id: ID) => Promise<void>{:ts}` | Delete a record |
 
-Note: `ctx.collection()` returns raw adapter methods, not the `Collection` API. Methods like `query()`, `get()`, `getAll()`, `count()`, `put()`, and `deleteMany()` are not available inside transactions.
+Note: `ctx.collection(){:ts}` returns raw adapter methods, not the `Collection{:ts}` API. Methods like `query(){:ts}`, `get(){:ts}`, `getAll(){:ts}`, `count(){:ts}`, `put(){:ts}`, and `deleteMany(){:ts}` are not available inside transactions.
 
 ```ts
 const result = await db.transaction(async (ctx) => {
@@ -77,8 +77,8 @@ console.log(ids) // [1, 2]
 
 ## Adapter behavior
 
-- **IndexedDBAdapter**: uses native `IDBTransaction`, calls `tx.abort()` on error. `ctx.collection(name)` returns bound methods (`findAll()`, `findById()`, `create()`, etc.) — no collection name parameter needed.
-- **MemoryAdapter**: takes a snapshot before the transaction runs, restores it on error. `ctx.collection(name)` returns the raw adapter, so you must pass the collection name to each method: `adapter.findAll("todos")`, `adapter.create("todos", data)`.
+- **IndexedDBAdapter**: uses native `IDBTransaction{:ts}`, calls `tx.abort(){:ts}` on error. `ctx.collection(name){:ts}` returns bound methods (`findAll(){:ts}`, `findById(){:ts}`, `create(){:ts}`, etc.) — no collection name parameter needed.
+- **MemoryAdapter**: takes a snapshot before the transaction runs, restores it on error. `ctx.collection(name){:ts}` returns the raw adapter, so you must pass the collection name to each method: `adapter.findAll("todos"){:ts}`, `adapter.create("todos", data){:ts}`.
 
 ```ts
 // IndexedDB — bound methods
@@ -94,4 +94,4 @@ await db.transaction(async (ctx) => {
 })
 ```
 
-No nesting support — calling `db.transaction()` inside a transaction starts a new independent transaction.
+No nesting support — calling `db.transaction(){:ts}` inside a transaction starts a new independent transaction.

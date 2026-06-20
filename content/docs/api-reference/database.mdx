@@ -41,7 +41,7 @@ Closes the adapter and clears collection cache. Idempotent.
 collection<T>(name: string): Collection<T>
 ```
 
-Returns a cached or new collection for the given name. Throws `ConnectionError`
+Returns a cached or new collection for the given name. Throws `ConnectionError{:ts}`
 if not connected.
 
 ### transaction()

@@ -5,7 +5,7 @@ description: API reference for the Collection class
 
 ## Constructor
 
-Internal — collections are created by `Database.collection()`.
+Internal — collections are created by `Database.collection(){:ts}`.
 
 ## Properties
 
@@ -29,7 +29,7 @@ Creates a record. Applies defaults, validates schema, runs plugin hooks.
 get(id: ID): Promise<(Model<T> & T) | undefined>
 ```
 
-Fetches a record by ID. Returns `undefined` if not found.
+Fetches a record by ID. Returns `undefined{:js}` if not found.
 
 ### getAll()
 
@@ -98,7 +98,7 @@ Returns the total number of records.
 query(): QueryBuilder<T>
 ```
 
-Returns a new `QueryBuilder` for this collection.
+Returns a new `QueryBuilder{:ts}` for this collection.
 
 ### onChange()
 

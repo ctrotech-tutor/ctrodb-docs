@@ -3,7 +3,7 @@ title: Errors
 description: Error classes
 ---
 
-All errors extend `CtrodbError`, which extends `Error`.
+All errors extend `CtrodbError{:ts}`, which extends `Error{:js}`.
 
 ```ts
 import {
@@ -19,7 +19,7 @@ import {
 
 ## CtrodbError
 
-Base error class. Sets `this.name = "CtrodbError"`.
+Base error class. Sets `this.name = "CtrodbError"{:js}`.
 
 ## ConnectionError
 
@@ -49,7 +49,7 @@ new ValidationError(collection, field, message, value?)
 // 'Field "email" in collection "users": is required.'
 ```
 
-Has `.field`, `.collection`, `.value` properties.
+Has `.field{:ts}`, `.collection{:ts}`, `.value{:ts}` properties.
 
 ## Additional classes (not thrown by ctrodb)
 

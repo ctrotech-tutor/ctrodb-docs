@@ -3,18 +3,18 @@ title: Error Handling
 description: Working with ctrodb's error classes
 ---
 
-ctrodb throws typed errors for common failure scenarios. All custom errors extend `CtrodbError`.
+ctrodb throws typed errors for common failure scenarios. All custom errors extend `CtrodbError{:ts}`.
 
 ## Error hierarchy
 
 ```
-CtrodbError
-├── ConnectionError
-├── SchemaError
-├── ValidationError
+CtrodbError{:ts}
+├── ConnectionError{:ts}
+├── SchemaError{:ts}
+├── ValidationError{:ts}
 ```
 
-Additional error classes (`CollectionNotFoundError`, `RecordNotFoundError`, `QueryError`) exist in the library but are not currently thrown by ctrodb's built-in operations — they're available for your own use or plugin development.
+Additional error classes (`CollectionNotFoundError{:ts}`, `RecordNotFoundError{:ts}`, `QueryError{:ts}`) exist in the library but are not currently thrown by ctrodb's built-in operations — they're available for your own use or plugin development.
 
 ## Catching errors
 
@@ -66,7 +66,7 @@ Thrown when the schema configuration is invalid.
 
 ## ValidationError
 
-Thrown when a record violates schema validation rules. Contains `field`, `collection`, and `value` properties for detailed error handling.
+Thrown when a record violates schema validation rules. Contains `field{:ts}`, `collection{:ts}`, and `value{:ts}` properties for detailed error handling.
 
 ```ts
 const schema = {
@@ -97,15 +97,15 @@ try {
 
 These classes are exported and constructable but not thrown by ctrodb itself:
 
-- `CollectionNotFoundError(name, availableCollections?)` — for schema-constrained lookups
-- `RecordNotFoundError(collection, id)` — for record-level lookups
-- `QueryError(message)` — for malformed queries
+- `CollectionNotFoundError(name, availableCollections?){:ts}` — for schema-constrained lookups
+- `RecordNotFoundError(collection, id){:ts}` — for record-level lookups
+- `QueryError(message){:ts}` — for malformed queries
 
 You can use them in your own code or plugins for consistent error types.
 
 ## Log levels
 
-`logLevel` is accepted in `DatabaseConfig` and reserved for future use:
+`logLevel{:ts}` is accepted in `DatabaseConfig{:ts}` and reserved for future use:
 
 ```ts
 const db = new Database({
@@ -115,8 +115,8 @@ const db = new Database({
 
 | Level | Intended behavior (not yet implemented) |
 |-------|-----------------------------------------|
-| `"debug"` | All internal operations logged |
-| `"info"` | Major lifecycle events (connect, disconnect) |
-| `"warn"` | Recoverable issues (blocked IDB) |
-| `"error"` | Failures and exceptions |
-| `"silent"` | No logging |
+| `"debug"{:txt}` | All internal operations logged |
+| `"info"{:txt}` | Major lifecycle events (connect, disconnect) |
+| `"warn"{:txt}` | Recoverable issues (blocked IDB) |
+| `"error"{:txt}` | Failures and exceptions |
+| `"silent"{:txt}` | No logging |

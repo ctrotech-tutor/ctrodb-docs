@@ -3,7 +3,7 @@ title: useDoc
 description: Fetch a single record by ID
 ---
 
-A convenience wrapper around `useQuery` for fetching one record.
+A convenience wrapper around `useQuery{:ts}` for fetching one record.
 
 ## Signature
 
@@ -33,7 +33,7 @@ function TodoDetail({ id }: { id: number }) {
 }
 ```
 
-Returns `undefined` if the id is not provided (e.g., before data loads)
+Returns `undefined{:js}` if the id is not provided (e.g., before data loads)
 or if the record does not exist.
 
 ## With optional id

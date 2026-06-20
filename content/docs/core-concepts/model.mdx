@@ -3,7 +3,7 @@ title: Model
 description: The record wrapper with methods and relation getters
 ---
 
-Every record returned from a collection is wrapped in a `Model<T>` proxy.
+Every record returned from a collection is wrapped in a `Model<T>{:ts}` proxy.
 You can access fields directly — no `.get("field")` calls needed.
 
 ## Transparent field access
@@ -14,8 +14,8 @@ console.log(user.name)   // direct field access
 console.log(user.email)  // works for any field
 ```
 
-The model is a `Proxy` that forwards property access to the underlying data.
-Direct writes warn you to use `.update()` instead.
+The model is a `Proxy{:js}` that forwards property access to the underlying data.
+Direct writes warn you to use `.update(){:ts}` instead.
 
 ## Instance methods
 
@@ -25,7 +25,7 @@ await user.delete()
 user.toJSON() // plain object copy
 ```
 
-`update()` and `delete()` call back into the collection's CRUD methods.
+`update(){:ts}` and `delete(){:ts}` call back into the collection's CRUD methods.
 
 ## Relation getters
 
@@ -38,7 +38,7 @@ const user = await users.get(1)
 const posts = await user.posts.fetch()
 ```
 
-Each relation getter returns a `QueryBuilder` pre-filtered to match the relation.
+Each relation getter returns a `QueryBuilder{:ts}` pre-filtered to match the relation.
 
 ## id
 
@@ -46,4 +46,4 @@ Each relation getter returns a `QueryBuilder` pre-filtered to match the relation
 user.id // string | number
 ```
 
-The `id` is a getter on the data — not settable via the proxy.
+The `id{:ts}` is a getter on the data — not settable via the proxy.

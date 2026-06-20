@@ -5,9 +5,9 @@ description: API reference for the Model class
 
 ## Constructor
 
-Internal — models are created by `Collection._toModel()`.
+Internal — models are created by `Collection._toModel(){:ts}`.
 
-`Model` uses a `Proxy` to expose record fields as direct properties.
+`Model{:ts}` uses a `Proxy{:js}` to expose record fields as direct properties.
 
 ## Properties
 
@@ -31,7 +31,7 @@ user.email
 update(changes: Partial<T>): Promise<Model<T>>
 ```
 
-Calls `collection.update(this.id, changes)`.
+Calls `collection.update(this.id, changes){:ts}`.
 
 ### delete()
 
@@ -39,7 +39,7 @@ Calls `collection.update(this.id, changes)`.
 delete(): Promise<void>
 ```
 
-Calls `collection.delete(this.id)`.
+Calls `collection.delete(this.id){:ts}`.
 
 ### toJSON()
 
@@ -52,4 +52,4 @@ Returns a plain copy of the data — no methods or proxy.
 ## Relation getters
 
 Auto-attached when the schema defines relations and the relations plugin is active.
-Each getter returns a `QueryBuilder` pre-filtered to match the relation.
+Each getter returns a `QueryBuilder{:ts}` pre-filtered to match the relation.

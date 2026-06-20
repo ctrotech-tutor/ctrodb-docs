@@ -3,7 +3,7 @@ title: DatabaseProvider
 description: React context provider for database access
 ---
 
-`DatabaseProvider` makes the database instance available to all hooks in the tree.
+`DatabaseProvider{:tsx}` makes the database instance available to all hooks in the tree.
 
 ## Usage
 
@@ -64,4 +64,4 @@ defaultDb.collection("todos").getAll()
 ## How it works
 
 `DatabaseProvider` calls `setDefaultDatabase(db)` and renders a context provider.
-The `useDatabase` hook reads from context first, falling back to the default.
+The `useDatabase{:ts}` hook reads from context first, falling back to the default.

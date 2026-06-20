@@ -5,7 +5,7 @@ description: API reference for the QueryBuilder class
 
 ## Constructor
 
-Internal — use `collection.query()`.
+Internal — use `collection.query(){:ts}`.
 
 ## Methods
 
@@ -42,7 +42,7 @@ const items = await todos
 sort(spec: Partial<Record<keyof T, "asc" | "desc">>): this
 ```
 
-Only the first entry is used. Example: `query.sort({ createdAt: "desc" })`.
+Only the first entry is used. Example: `query.sort({ createdAt: "desc" }){:ts}`.
 
 ### limit()
 
@@ -108,7 +108,7 @@ Shortcut for `fetch()` returning `results.length`.
 toArray(): Promise<T[]>
 ```
 
-Like `fetch()` but returns plain objects via `.toJSON()`.
+Like `fetch()` but returns plain objects via `.toJSON(){:ts}`.
 
 ```ts
 const items = await todos.query().toArray()

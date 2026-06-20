@@ -3,7 +3,7 @@ title: Collection
 description: Read and write records
 ---
 
-A `Collection<T>` maps to a single table or object store. All operations are async.
+A `Collection<T>{:ts}` maps to a single table or object store. All operations are async.
 
 ## Create
 
@@ -30,7 +30,7 @@ const record = await collection.get(id: ID)
 const all = await collection.getAll()
 ```
 
-`get` returns a single record or `undefined`. `getAll` returns every record.
+`get{:ts}` returns a single record or `undefined{:js}`. `getAll{:ts}` returns every record.
 
 ```ts
 const task = await todos.get(1)
@@ -70,7 +70,7 @@ await collection.deleteMany(ids: ID[])
 const record = await collection.put(data: T & { id?: ID })
 ```
 
-If `data.id` matches an existing record, updates it. Otherwise creates it.
+If `data.id{:ts}` matches an existing record, updates it. Otherwise creates it.
 
 ## Count
 

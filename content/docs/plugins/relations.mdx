@@ -53,7 +53,7 @@ const db = new Database({
 
 ## Eager loading
 
-The plugin adds a `.with()` method to collections:
+The plugin adds a `.with(){:ts}` method to collections:
 
 ```ts
 const users = await db.collection("users").with("posts").fetch()
@@ -78,10 +78,10 @@ const post = await db.collection("posts").get(1)
 const author = await post.author.first()
 ```
 
-Lazy getters return a `QueryBuilder` pre-filtered on the foreign key.
-The `belongs_to` getter filters `target_collection.where("id", "==", this.foreignKey)`.
-The `has_many`/`has_one` getter filters
-`target_collection.where("foreignKey", "==", this.id)`.
+Lazy getters return a `QueryBuilder{:ts}` pre-filtered on the foreign key.
+The `belongs_to{:ts}` getter filters `target_collection.where("id", "==", this.foreignKey){:ts}`.
+The `has_many{:ts}`/`has_one{:ts}` getter filters
+`target_collection.where("foreignKey", "==", this.id){:ts}`.
 
 ## RelationsEngine
 

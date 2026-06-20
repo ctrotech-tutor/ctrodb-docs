@@ -29,7 +29,7 @@ const db = new Database({
 
 ## How it works
 
-The plugin stores a token-to-document mapping in a `_ctrodb_fts` collection.
+The plugin stores a token-to-document mapping in a `_ctrodb_fts{:ts}` collection.
 
 **Indexing:**
 - On create/update/delete, tokens are extracted from searchable fields
@@ -38,7 +38,7 @@ The plugin stores a token-to-document mapping in a `_ctrodb_fts` collection.
 
 ## Basic search (substring matching)
 
-Without the FTS index, `.search()` does case-insensitive substring matching:
+Without the FTS index, `.search(){:ts}` does case-insensitive substring matching:
 
 ```ts
 const results = await articles
@@ -61,7 +61,7 @@ const ids = await indexer.search("articles", "database schema")
 // ids contains IDs of documents matching ALL tokens (AND logic)
 ```
 
-`FTSIndexer.search()` tokenizes the query and returns only document IDs
+`FTSIndexer.search(){:ts}` tokenizes the query and returns only document IDs
 that contain every token. This is true tokenized AND search.
 
 ## Built-in stop words

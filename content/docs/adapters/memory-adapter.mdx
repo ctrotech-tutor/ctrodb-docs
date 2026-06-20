@@ -3,12 +3,12 @@ title: MemoryAdapter
 description: In-memory storage for Node and testing
 ---
 
-`MemoryAdapter` stores everything in a `Map`. Data is lost when the process exits.
+`MemoryAdapter{:ts}` stores everything in a `Map{:js}`. Data is lost when the process exits.
 
 ## How it works
 
-- Each collection is a `Map<ID, Record>`
-- IDs are auto-incrementing numbers (`1`, `2`, `3`, ...)
+- Each collection is a `Map<ID, Record>{:ts}`
+- IDs are auto-incrementing numbers (`1{:txt}`, `2{:txt}`, `3{:txt}`, ...)
 - On schema connect, collections are pre-created
 - Transactions take a snapshot and restore on error
 

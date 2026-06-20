@@ -9,8 +9,8 @@ Adapters handle persistence. ctrodb ships with two.
 
 | Adapter | Environment | Persistence |
 |---------|-------------|-------------|
-| `MemoryAdapter` | Node, browser | Not persisted |
-| `IndexedDBAdapter` | Browser only | Persists in IndexedDB |
+| `MemoryAdapter{:ts}` | Node, browser | Not persisted |
+| `IndexedDBAdapter{:ts}` | Browser only | Persists in IndexedDB |
 
 ## Auto-detection
 
@@ -37,7 +37,7 @@ const db2 = new Database({
 
 ## Custom adapters
 
-Any object implementing the `StorageAdapter` interface works:
+Any object implementing the `StorageAdapter{:ts}` interface works:
 
 ```ts
 import type { StorageAdapter } from "ctrodb"
@@ -55,14 +55,14 @@ Full [StorageAdapter interface](/docs/api-reference/types) in API reference.
 
 ## Transaction API
 
-All adapters implement `transaction<T>(fn)`. If the callback throws, all changes
+All adapters implement `transaction<T>(fn){:ts}`. If the callback throws, all changes
 are rolled back. See the [Transactions guide](/docs/core-concepts/transactions)
 for details.
 
-**IndexedDBAdapter**: `ctx.collection(name)` returns bound methods — call methods
+**IndexedDBAdapter**: `ctx.collection(name){:ts}` returns bound methods — call methods
 without passing the collection name.
 
-**MemoryAdapter**: `ctx.collection(name)` returns the raw adapter — pass the
+**MemoryAdapter**: `ctx.collection(name){:ts}` returns the raw adapter — pass the
 collection name to each method.
 
 ```ts

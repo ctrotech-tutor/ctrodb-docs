@@ -3,7 +3,7 @@ title: Query Engine
 description: Filter, sort, and paginate records
 ---
 
-`QueryBuilder` provides a fluent API for reading data. It does not support joins —
+`QueryBuilder{:ts}` provides a fluent API for reading data. It does not support joins —
 use [relations](/docs/plugins/relations) for related data.
 
 ## Basic usage
@@ -69,8 +69,8 @@ Use `offset` with `limit` for pagination. Offset skips records before slicing.
 query.search("title", "database")
 ```
 
-Case-insensitive substring search (`String.includes()`). The [FTS plugin](/docs/plugins/full-text-search)
-adds an inverted index, accessible via `FTSIndexer.search()`.
+Case-insensitive substring search (`String.includes(){:js}`). The [FTS plugin](/docs/plugins/full-text-search)
+adds an inverted index, accessible via `FTSIndexer.search(){:ts}`.
 
 ## Terminal methods
 
@@ -81,17 +81,17 @@ await query.count()              // number
 await query.toArray()            // T[] (plain objects)
 ```
 
-`first()` is equivalent to `.limit(1).fetch()` then returning `results[0]`.
+`first(){:ts}` is equivalent to `.limit(1).fetch()` then returning `results[0]`.
 
 ## How queries execute
 
-The `QueryPlanner` examines conditions and indexes to pick a strategy:
+The `QueryPlanner{:ts}` examines conditions and indexes to pick a strategy:
 
 | Strategy | When | How |
 |----------|------|-----|
-| `index_scan` | Field has an index | Uses IndexedDB index with key range |
-| `id_lookup` | Querying by `id` field with `==` | Direct adapter lookup |
-| `full_scan` | No index match | Iterates all records, filters in memory |
+| `index_scan{:ts}` | Field has an index | Uses IndexedDB index with key range |
+| `id_lookup{:ts}` | Querying by `id{:ts}` field with `==` | Direct adapter lookup |
+| `full_scan{:ts}` | No index match | Iterates all records, filters in memory |
 
 Sort, offset, and limit are applied in memory after fetching.
 
