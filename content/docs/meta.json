@@ -8,9 +8,13 @@
     "core-concepts/collection",
     "core-concepts/model",
     "core-concepts/query-engine",
+    "core-concepts/signal",
+    "core-concepts/transactions",
+    "core-concepts/error-handling",
     "adapters/overview",
     "adapters/memory-adapter",
     "adapters/indexeddb-adapter",
+    "adapters/custom",
     "plugins/overview",
     "plugins/full-text-search",
     "plugins/relations",
@@ -32,6 +36,7 @@
     "examples/node-cli",
     "examples/react-spa",
     "migration/from-alpha",
+    "migration/schema-migrations",
     "contributing"
   ]
 }

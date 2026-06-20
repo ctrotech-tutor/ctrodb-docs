@@ -42,6 +42,25 @@ const db = useDatabase()
 db.collection("todos").get(1)
 ```
 
+## setDefaultDatabase / getDb
+
+These module-level helpers manage a default database instance.
+
+```ts
+import { setDefaultDatabase, getDb } from "ctrodb/react"
+import { Database } from "ctrodb"
+
+const db = new Database({ name: "myapp" })
+await db.connect()
+setDefaultDatabase(db)
+
+// Elsewhere, without context:
+const defaultDb = getDb()
+defaultDb.collection("todos").getAll()
+```
+
+`getDb()` throws if no default has been set, with a descriptive error message.
+
 ## How it works
 
 `DatabaseProvider` calls `setDefaultDatabase(db)` and renders a context provider.

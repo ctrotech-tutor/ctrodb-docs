@@ -10,6 +10,22 @@ export type SidebarItem = {
 export type SidebarGroup = {
   title: string
   items: SidebarItem[]
+  icon?: string
+}
+
+const groupIcons: Record<string, string> = {
+  "getting-started": "Rocket",
+  "core-concepts": "Database",
+  adapters: "Cable",
+  plugins: "Puzzle",
+  react: "Atom",
+  "api-reference": "BookOpen",
+  examples: "Sparkles",
+  migration: "ArrowRightLeft",
+}
+
+function getIcon(key: string): string | undefined {
+  return groupIcons[key]
 }
 
 export function getSidebar(): SidebarGroup[] {
@@ -48,12 +64,17 @@ export function getSidebar(): SidebarGroup[] {
   for (const [key, items] of groupMap) {
     if (key === "__root__") {
       for (const item of items) {
-        groups.push({ title: item.title, items: [item] })
+        groups.push({
+          title: item.title,
+          items: [item],
+          icon: "GitPullRequest",
+        })
       }
     } else {
       groups.push({
         title: displayNames[key] || key.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
         items,
+        icon: getIcon(key),
       })
     }
   }

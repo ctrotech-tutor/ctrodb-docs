@@ -1,0 +1,149 @@
+---
+title: Error Handling
+description: Working with ctrodb's error classes
+---
+
+ctrodb throws typed errors for common failure scenarios. All custom errors extend `CtrodbError`.
+
+## Error hierarchy
+
+```
+CtrodbError
+├── ConnectionError
+├── CollectionNotFoundError
+├── RecordNotFoundError
+├── SchemaError
+├── ValidationError
+└── QueryError
+```
+
+## Catching errors
+
+```ts
+import {
+  CtrodbError,
+  ConnectionError,
+  RecordNotFoundError,
+  ValidationError,
+} from "ctrodb"
+
+try {
+  await db.collection("todos").create({ title: "My todo" })
+} catch (error) {
+  if (error instanceof ValidationError) {
+    console.error(`Field "${error.field}" failed validation`)
+  } else if (error instanceof ConnectionError) {
+    console.error("Database not connected — call db.connect()")
+  } else if (error instanceof CtrodbError) {
+    console.error("ctrodb error:", error.message)
+  } else {
+    throw error
+  }
+}
+```
+
+## ConnectionError
+
+Thrown when performing operations without an active connection.
+
+```ts
+try {
+  db.collection("todos").getAll()
+} catch (e) {
+  // "Database 'ctrodb' is not connected. Call db.connect()..."
+}
+```
+
+Can also include a custom reason passed to the constructor.
+
+## CollectionNotFoundError
+
+Thrown when a collection doesn't exist. If a list of available collections is provided, it's included in the message.
+
+```ts
+// If schema constrains collections and you request an unknown one
+```
+
+## RecordNotFoundError
+
+Thrown when `update()` or `delete()` targets a record that doesn't exist.
+
+```ts
+try {
+  await notes.update(999, { title: "Nope" })
+} catch (e) {
+  if (e instanceof RecordNotFoundError) {
+    // "Record with id '999' not found in collection 'notes'."
+  }
+}
+```
+
+Note: `get()` returns `undefined` instead of throwing. `deleteMany()` silently skips missing IDs.
+
+## SchemaError
+
+Thrown when the schema configuration is invalid.
+
+```ts
+// Missing required fields in schema definition
+// Conflicting index definitions
+```
+
+## ValidationError
+
+Thrown when a record violates schema validation rules. Contains `field`, `collection`, and `value` properties for detailed error handling.
+
+```ts
+const schema = {
+  version: 1,
+  collections: {
+    users: {
+      fields: {
+        email: { type: "string", validate: "email" },
+        age: { type: "number", min: 0, max: 150 },
+      },
+    },
+  },
+}
+
+try {
+  await db.collection("users").create({ email: "not-an-email", age: 200 })
+} catch (e) {
+  if (e instanceof ValidationError) {
+    console.error(e.field)     // "email"
+    console.error(e.collection) // "users"
+    console.error(e.value)     // "not-an-email"
+    console.error(e.message)   // "Field 'email' in collection 'users': ..."
+  }
+}
+```
+
+## QueryError
+
+Thrown when a query is malformed — for example, referencing an invalid field or operator.
+
+```ts
+try {
+  await todos.query().where("nonexistent", ">=", 10).fetch()
+} catch (e) {
+  if (e instanceof QueryError) { ... }
+}
+```
+
+## Log levels
+
+Control verbosity with the `logLevel` config option:
+
+| Level | Description |
+|-------|-------------|
+| `"debug"` | All internal operations logged |
+| `"info"` | Major lifecycle events (connect, disconnect) |
+| `"warn"` | Recoverable issues (blocked IDB) |
+| `"error"` | Failures and exceptions |
+| `"silent"` | No logging |
+
+```ts
+const db = new Database({
+  logLevel: "warn", // only warnings and errors
+})
+```

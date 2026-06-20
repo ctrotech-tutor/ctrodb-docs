@@ -1,0 +1,185 @@
+---
+title: "Getting Started with ctrodb: A Client-Side Database for Modern Web Apps"
+description: "Learn how to set up ctrodb, define schemas, and perform CRUD operations in the browser and Node.js."
+date: 2026-06-18
+author: ctrodb team
+tags:
+  - getting-started
+  - tutorial
+  - basics
+category: Getting Started
+---
+
+ctrodb is a zero-dependency, reactive, client-side database that works in the browser and Node.js. It gives you a MongoDB-like API with full TypeScript support, IndexedDB persistence, and signal-based reactivity — all without a server.
+
+In this guide, you'll learn how to install ctrodb, define your first schema, and perform create, read, update, and delete operations.
+
+## Installation
+
+Install ctrodb via npm:
+
+```bash
+npm install ctrodb
+```
+
+ctrodb has zero runtime dependencies. The package ships ESM, CJS, and IIFE formats, so it works with any bundler or directly in the browser via a `<script>` tag.
+
+## Creating a Database
+
+Import the `Database` class and create an instance with a configuration object:
+
+```typescript
+import { Database } from "ctrodb"
+
+const db = new Database({
+  name: "my-app",
+  adapter: "memory", // or "indexeddb" for persistence
+})
+
+await db.connect()
+console.log(db.isConnected) // true
+```
+
+The `adapter` option accepts `"memory"` for an in-memory store, `"indexeddb"` for browser persistence, or auto-detection (IndexedDB when available, memory fallback).
+
+## Defining a Schema
+
+Schemas define the shape of your data, including field types, validation rules, indexes, and default values:
+
+```typescript
+const schema = {
+  version: 1,
+  collections: {
+    users: {
+      fields: {
+        name: { type: "string", required: true },
+        email: { type: "string", required: true, validate: "email" },
+        age: { type: "number", min: 0, max: 150 },
+        role: { type: "string", default: "user" },
+        createdAt: { type: "string" },
+      },
+      indexes: [
+        { field: "email", unique: true },
+      ],
+    },
+  },
+}
+
+const db = new Database({ name: "my-app", adapter: "memory", schema })
+await db.connect()
+```
+
+## Basic CRUD Operations
+
+Access a collection and perform operations:
+
+```typescript
+const users = db.collection("users")
+
+// Create
+const user = await users.create({
+  name: "Alice",
+  email: "alice@example.com",
+  age: 30,
+})
+console.log(user.id) // auto-assigned
+console.log(user.name) // "Alice"
+
+// Read
+const found = await users.get(user.id)
+const allUsers = await users.getAll()
+const count = await users.count()
+
+// Update
+await users.update(user.id, { age: 31 })
+
+// Delete
+await users.delete(user.id)
+```
+
+### Upsert with `put`
+
+The `put` method creates or updates a record by ID:
+
+```typescript
+// Create new
+const alice = await users.put({ name: "Alice", email: "alice@example.com" })
+
+// Update existing
+const updated = await users.put({ id: alice.id, age: 32 })
+```
+
+## Working with Models
+
+Every record returned from CRUD operations is a `Model` — a Proxy wrapper that provides transparent field access:
+
+```typescript
+const user = await users.create({ name: "Bob", email: "bob@test.com" })
+
+user.id           // direct access
+user.name         // "Bob"
+user.email        // "bob@test.com"
+user.toJSON()     // plain object copy
+
+// Update in-place
+await user.update({ age: 25 })
+
+// Delete in-place
+await user.delete()
+```
+
+Models also provide helpful methods like `toJSON()` for serialization and `update()` / `delete()` for operating on the record directly.
+
+## Querying Data
+
+ctrodb includes a fluent QueryBuilder for advanced queries:
+
+```typescript
+// Simple equality
+const admins = await users.query().where("role", "admin").fetch()
+
+// Range queries
+const adults = await users.query().where("age", ">=", 18).fetch()
+
+// Sorting and pagination
+const results = await users
+  .query()
+  .where("role", "admin")
+  .sort({ age: "desc" })
+  .limit(10)
+  .offset(0)
+  .fetch()
+
+// Count filtered results
+const total = await users.query().where("role", "admin").count()
+```
+
+## Schema-less Mode
+
+ctrodb also works without a schema for quick prototyping:
+
+```typescript
+const db = new Database({ name: "scratch", adapter: "memory" })
+await db.connect()
+
+const items = db.collection("items")
+await items.create({ name: "Widget", price: 9.99 })
+await items.create({ name: "Gadget", price: 24.99 })
+
+const all = await items.getAll()
+console.log(all.length) // 2
+```
+
+Without a schema, no validation or indexing occurs, but all CRUD operations work normally.
+
+## Next Steps
+
+You now have the fundamentals of ctrodb. From here, you can:
+
+- **Add persistence** by switching to `adapter: "indexeddb"`
+- **Build reactive UIs** with React hooks (see our React integration guide)
+- **Add full-text search** with the FTS plugin
+- **Define relations** between collections
+- **Run transactions** for multi-step operations
+
+ctrodb is designed to scale from simple prototypes to full offline-first applications — all without leaving your browser.

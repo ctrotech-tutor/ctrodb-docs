@@ -1,0 +1,264 @@
+---
+title: "Schema Design and Validation in ctrodb"
+description: "Design robust schemas with field types, validation rules, default values, and indexes for your client-side database."
+date: 2026-06-27
+author: ctrodb team
+tags:
+  - schema
+  - validation
+  - design-patterns
+category: Schema
+---
+
+ctrodb's schema system lets you define the shape, constraints, and defaults for your data. It enforces types at write time, applies default values, validates custom rules, and defines indexes for efficient queries. Good schema design is the foundation of a reliable client-side application.
+
+## Schema Structure
+
+A schema is organized by version and collections:
+
+```typescript
+const schema = {
+  version: 1,
+  collections: {
+    users: {
+      fields: {
+        name: { type: "string", required: true },
+        email: { type: "string", required: true },
+      },
+      indexes: [{ field: "email", unique: true }],
+    },
+  },
+}
+```
+
+The `version` field enables schema migrations. ctrodb tracks applied versions in metadata and can detect when a schema has changed.
+
+## Field Types
+
+ctrodb supports five field types:
+
+```typescript
+type FieldType = "string" | "number" | "boolean" | "object" | "array"
+```
+
+```typescript
+const schema = {
+  version: 1,
+  collections: {
+    products: {
+      fields: {
+        title: { type: "string" },        // string
+        price: { type: "number" },         // number
+        inStock: { type: "boolean" },      // boolean
+        metadata: { type: "object" },      // object
+        tags: {                             // array of strings
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+    },
+  },
+}
+```
+
+Type checking uses `typeof` (and `Array.isArray` for arrays). A record with a type mismatch will throw a `ValidationError` at write time.
+
+## Validation Rules
+
+### Required Fields
+
+Mark a field as required to reject records without it:
+
+```typescript
+email: { type: "string", required: true }
+```
+
+Attempting to create a record without `email` throws:
+
+```typescript
+await users.create({ name: "Alice" })
+// Throws: ValidationError: "email" is required in collection "users"
+```
+
+### Built-in Validators
+
+The `validate` option supports email, URL, or regular expression validation:
+
+```typescript
+fields: {
+  email: { type: "string", validate: "email" },
+  website: { type: "string", validate: "url" },
+  zipCode: { type: "string", validate: /^\d{5}(-\d{4})?$/ },
+}
+```
+
+- `"email"` — Checks the format `<local>@<domain>.<tld>`
+- `"url"` — Attempts to parse with `new URL(value)`
+- `RegExp` — Tests the value against the pattern
+
+### Custom Validation Functions
+
+For custom logic, pass a function:
+
+```typescript
+age: {
+  type: "number",
+  validate: (value) => value >= 0 && value <= 150,
+}
+```
+
+The function receives the field value and must return `true` (valid) or `false` (invalid).
+
+### Numeric Constraints
+
+```typescript
+fields: {
+  price: { type: "number", min: 0 },
+  quantity: { type: "number", min: 0, max: 999999 },
+}
+```
+
+### String Length Constraints
+
+```typescript
+fields: {
+  bio: { type: "string", maxLength: 500 },
+  code: { type: "string", min: 6, max: 6 },
+}
+```
+
+## Default Values
+
+Default values are applied automatically when a field is undefined:
+
+```typescript
+fields: {
+  role: { type: "string", default: "user" },
+  createdAt: {
+    type: "string",
+    default: () => new Date().toISOString(),
+  },
+  counter: { type: "number", default: 0 },
+}
+```
+
+Function defaults (like the ISO date string above) are called for each new record, giving you dynamic default values.
+
+## Indexes
+
+Indexes enable efficient querying and uniqueness enforcement:
+
+```typescript
+indexes: [
+  { field: "email", unique: true },
+  { field: "category" },
+  { field: "createdAt" },
+]
+```
+
+An index with `unique: true` prevents duplicate values. The query planner automatically uses indexes when available.
+
+## Searchable Fields
+
+Declare fields for full-text search (used by the FTS plugin):
+
+```typescript
+{ …,
+  searchable: ["title", "body"],
+}
+```
+
+## Complete Example: User Profile Schema
+
+```typescript
+const schema = {
+  version: 1,
+  collections: {
+    profiles: {
+      fields: {
+        username: {
+          type: "string",
+          required: true,
+          validate: /^[a-zA-Z0-9_]{3,20}$/,
+        },
+        displayName: { type: "string", required: true, maxLength: 100 },
+        email: { type: "string", required: true, validate: "email" },
+        age: { type: "number", min: 13, max: 120 },
+        bio: { type: "string", maxLength: 500, default: "" },
+        role: { type: "string", default: "user" },
+        isActive: { type: "boolean", default: true },
+        tags: { type: "array", items: { type: "string" } },
+        metadata: { type: "object" },
+        createdAt: {
+          type: "string",
+          default: () => new Date().toISOString(),
+        },
+      },
+      indexes: [
+        { field: "username", unique: true },
+        { field: "email", unique: true },
+        { field: "role" },
+      ],
+    },
+  },
+}
+```
+
+## Error Handling
+
+Validation errors carry useful metadata for debugging:
+
+```typescript
+import { ValidationError } from "ctrodb"
+
+try {
+  await users.create({ name: "Alice" })
+} catch (err) {
+  if (err instanceof ValidationError) {
+    console.error(err.field)      // "email"
+    console.error(err.collection) // "users"
+    console.error(err.value)      // undefined
+  }
+}
+```
+
+Properties on `ValidationError`:
+- `field` — The field that failed validation
+- `collection` — The collection name
+- `value` — The rejected value
+
+## Schema-less Mode
+
+When no schema is provided, ctrodb operates in schema-less mode:
+
+```typescript
+const db = new Database({ name: "scratch", adapter: "memory" })
+await db.connect()
+
+const items = db.collection("items")
+await items.create({ name: "Widget", price: 9.99 }) // No validation
+```
+
+This is useful for prototyping, but for production applications, a well-defined schema catches bugs early.
+
+## Schema Design Best Practices
+
+1. **Define schemas early** — Even for simple apps, a schema catches type errors at the data layer instead of in your UI.
+2. **Use required + default** — Required fields catch missing data, while defaults handle optional fields gracefully.
+3. **Index what you query** — Add indexes for fields used in `where`, `sort`, and `search`.
+4. **Set unique indexes** — For emails, usernames, slugs, or any field that must be unique.
+5. **Validate at the boundary** — The schema is your data validation layer. Use it alongside UI validation for defense in depth.
+6. **Version your schemas** — Increment `version` when making breaking changes to support future migrations.
+
+## Summary
+
+ctrodb's schema system provides:
+
+- Five field types with runtime type enforcement
+- Built-in validators (email, URL, regex, custom functions)
+- Numeric and string constraints (min, max, maxLength)
+- Static and dynamic default values
+- Index definitions for performance and uniqueness
+- `ValidationError` with detailed metadata
+
+A well-designed schema turns your client-side database from a simple key-value store into a robust, type-safe data layer.

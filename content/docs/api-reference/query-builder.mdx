@@ -27,6 +27,15 @@ orWhere(callback: (q: QueryBuilder<T>) => void): this
 Groups conditions with OR logic. Multiple `where` calls inside the same
 `orWhere` are AND'd within the group.
 
+```ts
+// Find items that are either completed OR high priority
+const items = await todos
+  .query()
+  .where("status", "active")
+  .orWhere((q) => q.where("priority", "high").where("assigned", true))
+  .fetch()
+```
+
 ### sort()
 
 ```ts
@@ -45,6 +54,20 @@ limit(n: number): this
 
 ```ts
 offset(n: number): this
+```
+
+Pagination example:
+
+```ts
+const pageSize = 20
+const page = 2
+
+const results = await todos
+  .query()
+  .sort({ createdAt: "desc" })
+  .offset((page - 1) * pageSize)
+  .limit(pageSize)
+  .fetch()
 ```
 
 ### search()
@@ -86,3 +109,9 @@ toArray(): Promise<T[]>
 ```
 
 Like `fetch()` but returns plain objects via `.toJSON()`.
+
+```ts
+const items = await todos.query().toArray()
+// items[0] is { id: 1, title: "...", completed: false }
+// Not a Model — no .update() / .delete() methods
+```

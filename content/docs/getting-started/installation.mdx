@@ -3,36 +3,14 @@ title: Installation
 description: How to install ctrodb
 ---
 
-## npm
-
-```bash
-npm install ctrodb
-```
-
-## pnpm
-
-```bash
-pnpm add ctrodb
-```
-
-## yarn
-
-```bash
-yarn add ctrodb
-```
-
-## bun
-
-```bash
-bun add ctrodb
-```
+<InstallTabs />
 
 ## Requirements
 
-- Node.js 18+ (for Node.js usage)
-- The library itself works in any modern browser or Node 18+
-- TypeScript types are included — no `@types/ctrodb` needed
-- React bindings are in `ctrodb/react`, no extra package
+* Use `Node.js{:bash}` version `20+{:txt}` for Node environments
+* ctrodb works in any modern browser and `Node.js{:bash}` `20+{:txt}`
+* TypeScript declarations are bundled — no need for `@types/ctrodb{:bash}`
+* React bindings are included via `ctrodb/react{:ts}` — no additional package required
 
 ## CDN
 
@@ -40,4 +18,14 @@ bun add ctrodb
 <script src="https://unpkg.com/ctrodb@latest/dist/index.global.js"></script>
 ```
 
-The global name is `CtroDB`.
+After loading from CDN, access the library globally using `CtroDB{:js}`.
+
+## Verify Installation
+
+```ts
+import { Database } from "ctrodb"
+
+const db = new Database()
+```
+
+If this runs successfully, ctrodb is ready to use.

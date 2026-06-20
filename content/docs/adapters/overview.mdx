@@ -60,9 +60,12 @@ are rolled back:
 
 ```ts
 await db.transaction(async (ctx) => {
-  const col = ctx.collection("todos")
-  await col.create({ title: "A" })
-  await col.create({ title: "B" })
+  const todos = ctx.collection("todos")
+  await todos.create({ title: "A" })
+  await todos.create({ title: "B" })
   // Both or neither
 })
 ```
+
+See the [Transactions guide](/docs/core-concepts/transactions) for details on
+the transaction context API.

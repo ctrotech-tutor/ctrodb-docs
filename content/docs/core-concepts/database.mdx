@@ -16,7 +16,7 @@ const db = new Database(config?: DatabaseConfig)
 | `name` | `string` | `"ctrodb"` | Database name |
 | `adapter` | `"indexeddb" \| "memory" \| StorageAdapter` | auto | Storage backend |
 | `schema` | `SchemaConfig` | — | Schema definition |
-| `plugins` | `CtrochemicalPlugin[]` | — | Plugin list |
+| `plugins` | `CtroDBPlugin[]` | — | Plugin list |
 | `logLevel` | `"debug" \| "info" \| "warn" \| "error" \| "silent"` | — | Log level |
 
 ## Connect / Disconnect
@@ -49,13 +49,15 @@ Collections are lazily created — first access initializes a new `Collection<T>
 
 ```ts
 const result = await db.transaction(async (ctx) => {
-  const col = ctx.collection("todos")
-  return col.findAll()
+  const todos = ctx.collection("todos")
+  return todos.findAll()
 })
 ```
 
 If the callback throws, all changes are rolled back.
-The transaction context provides raw adapter CRUD methods.
+The transaction context provides raw CRUD methods — `findAll()`, `findById()`, `create()`, `update()`, `delete()` — not the full Collection API.
+
+See the [Transactions guide](/docs/core-concepts/transactions) for details.
 
 ## Change events
 

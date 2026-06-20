@@ -1,0 +1,275 @@
+---
+title: "Transactions and Data Integrity in ctrodb"
+description: "Ensure data consistency with ctrodb's transaction system, rollback support, and comprehensive error types."
+date: 2026-07-02
+author: ctrodb team
+tags:
+  - transactions
+  - error-handling
+  - data-integrity
+category: Transactions
+---
+
+When your application performs multiple related database operations, you need guarantees that either all operations succeed or none do. ctrodb provides a transaction API that ensures atomicity, along with a rich set of error types for precise error handling.
+
+## The Transaction API
+
+Wrap multiple operations in `db.transaction()`:
+
+```typescript
+await db.transaction(async (ctx) => {
+  const users = ctx.collection("users")
+  const posts = ctx.collection("posts")
+
+  const user = await users.create({
+    name: "Alice",
+    email: "alice@example.com",
+  })
+
+  await posts.create({
+    title: "My First Post",
+    body: "Hello, world!",
+    userId: user.id,
+  })
+})
+```
+
+If any operation throws, all changes within the transaction are rolled back. The database remains in its original state.
+
+### How Rollback Works
+
+- **Memory adapter**: The adapter snapshots the entire data state before the transaction. On error, it restores the snapshot.
+- **IndexedDB adapter**: Uses the native `IDBTransaction`. On error, it calls `.abort()` to discard all changes.
+
+## Transaction Context API
+
+Inside a transaction, `ctx.collection(name)` returns a transaction-scoped collection adapter. This is **not** the same as `db.collection(name)`. The transaction adapter exposes low-level methods:
+
+```typescript
+interface TransactionContext {
+  collection(name: string): {
+    create(data: unknown): Promise<unknown>
+    findById(id: ID): Promise<unknown>
+    findAll(): Promise<unknown[]>
+    update(id: ID, changes: unknown): Promise<unknown>
+    delete(id: ID): Promise<void>
+  }
+}
+```
+
+Note that Model wrappers, validation, and plugin hooks do **not** run inside the transaction context. Transactions operate at the storage adapter level for atomicity guarantees.
+
+### Full Transaction Example
+
+```typescript
+import { Database } from "ctrodb"
+
+const db = new Database({ name: "shop", adapter: "indexeddb" })
+await db.connect()
+
+async function transferFunds(fromId: number, toId: number, amount: number) {
+  await db.transaction(async (ctx) => {
+    const accounts = ctx.collection("accounts")
+
+    const fromAccount = await accounts.findById(fromId)
+    if (!fromAccount) throw new Error("Sender not found")
+
+    const toAccount = await accounts.findById(toId)
+    if (!toAccount) throw new Error("Recipient not found")
+
+    if (fromAccount.balance < amount) {
+      throw new Error("Insufficient funds")
+    }
+
+    await accounts.update(fromId, { balance: fromAccount.balance - amount })
+    await accounts.update(toId, { balance: toAccount.balance + amount })
+  })
+  // If we reach here, the transfer is guaranteed atomic
+}
+```
+
+## Error Types
+
+ctrodb provides seven error classes for precise error handling:
+
+```typescript
+import {
+  CtrodbError,           // Base error class
+  ConnectionError,       // Connection failures
+  CollectionNotFoundError, // Unknown collection access
+  RecordNotFoundError,   // Missing record by ID
+  SchemaError,           // Schema configuration errors
+  ValidationError,       // Field validation failures
+  QueryError,            // Query execution errors
+} from "ctrodb"
+```
+
+### Handling Validation Errors
+
+`ValidationError` carries detailed metadata about what went wrong:
+
+```typescript
+import { ValidationError } from "ctrodb"
+
+try {
+  await users.create({ email: "invalid" })
+} catch (err) {
+  if (err instanceof ValidationError) {
+    console.error(`Field "${err.field}" in collection "${err.collection}"`)
+    console.error(`Rejected value:`, err.value)
+  }
+}
+```
+
+### Handling Connection Errors
+
+```typescript
+try {
+  await db.connect()
+} catch (err) {
+  if (err instanceof ConnectionError) {
+    console.error("Database unavailable:", err.message)
+    // Show UI, fall back to offline mode, etc.
+  }
+}
+```
+
+### Handling Record Not Found
+
+```typescript
+try {
+  const user = await users.get(999)
+  if (!user) {
+    // get() returns undefined for missing records — no error thrown
+    console.log("User not found")
+  }
+
+  // update() and delete() throw RecordNotFoundError
+  await users.update(999, { name: "Ghost" })
+} catch (err) {
+  if (err instanceof RecordNotFoundError) {
+    console.error(`Record 999 not found in users`)
+  }
+}
+```
+
+## Data Integrity Patterns
+
+### Pattern 1: Atomic Updates with Rollback
+
+```typescript
+async function updateProfile(
+  userId: number,
+  profileData: Partial<Profile>,
+  auditEntry: AuditEntry
+) {
+  await db.transaction(async (ctx) => {
+    const profiles = ctx.collection("profiles")
+    const audit = ctx.collection("audit")
+
+    await profiles.update(userId, profileData)
+    await audit.create(auditEntry)
+    // If audit creation fails, profile update is rolled back
+  })
+}
+```
+
+### Pattern 2: Conditional Rollback
+
+```typescript
+async function reserveInventory(orderId: number, items: OrderItem[]) {
+  await db.transaction(async (ctx) => {
+    const inventory = ctx.collection("inventory")
+    const orders = ctx.collection("orders")
+
+    for (const item of items) {
+      const stock = await inventory.findById(item.productId)
+      if (!stock || stock.quantity < item.quantity) {
+        throw new Error(`Insufficient stock for product ${item.productId}`)
+      }
+      await inventory.update(item.productId, {
+        quantity: stock.quantity - item.quantity,
+      })
+    }
+
+    await orders.update(orderId, { status: "confirmed" })
+  })
+}
+```
+
+### Pattern 3: Defensive Validation
+
+```typescript
+async function createUser(data: UserData) {
+  // Validate before any database operation
+  if (!data.email?.includes("@")) {
+    throw new Error("Invalid email")
+  }
+
+  if (data.age < 13) {
+    throw new ValidationError("age", "users", data.age)
+  }
+
+  return users.create(data)
+}
+```
+
+## Database-Level Change Events
+
+Subscribe to all changes across all collections:
+
+```typescript
+const unsubscribe = db.on((event) => {
+  console.log(
+    `${event.type} on ${event.collection}#${event.recordId}`
+  )
+})
+
+// Later
+unsubscribe() // Clean up subscription
+```
+
+The `ChangeEvent` type provides:
+
+```typescript
+interface ChangeEvent {
+  type: "create" | "update" | "delete"
+  collection: string
+  recordId: ID
+  record?: unknown       // Current state (create, update)
+  oldRecord?: unknown    // Previous state (update, delete)
+}
+```
+
+## Collection-Level Change Events
+
+For more granular subscriptions:
+
+```typescript
+const unsub = collection.onChange((event) => {
+  if (event.type === "create") {
+    console.log("New record:", event.record)
+  }
+})
+```
+
+## Best Practices
+
+1. **Keep transactions short** — Long-running transactions hold locks (especially on IndexedDB).
+2. **Validate outside transactions** — Perform validation before entering the transaction to minimize rollback scenarios.
+3. **Handle errors gracefully** — Use the specific error types to provide meaningful feedback to users.
+4. **Use transactions for multi-step operations** — Any operation that must be atomic should use `db.transaction()`.
+5. **Log rollbacks** — When a transaction fails, log the error for debugging while showing a user-friendly message.
+
+## Summary
+
+ctrodb's transaction and error handling system ensures data integrity:
+
+- Atomic transactions with automatic rollback on failure
+- Works with both memory and IndexedDB adapters
+- Seven error types for precise error handling
+- `ValidationError` with field/collection/value metadata
+- Global and collection-level change event subscriptions
+- Defensive validation patterns for production use
+
+Combined with schema validation and plugin hooks, these tools give you the data integrity guarantees you'd expect from a server-side database — entirely in the browser.

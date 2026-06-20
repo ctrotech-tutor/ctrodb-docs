@@ -1,0 +1,109 @@
+---
+title: "Client-Side Full-Text Search with ctrodb"
+description: "Build a complete search experience in the browser using ctrodb's inverted index engine, tokenizer, and search API."
+date: 2026-07-08
+author: ctrodb team
+tags:
+  - search
+  - fts
+  - plugins
+category: Search
+---
+
+Full-text search is one of the most requested features for client-side applications. ctrodb's FTS plugin provides an inverted index engine that runs entirely in the browser — no server, no external API, no network requests.
+
+## How It Works
+
+The FTS plugin builds an inverted index: for each token (word) in your searchable fields, it stores the set of document IDs that contain that token. When you search, it tokenizes your query, looks up each token's document set, and intersects them to find matching records.
+
+```
+Token: "typescript" → Documents: [1, 3, 7, 12]
+Token: "react"      → Documents: [1, 5, 7]
+Token: "hooks"      → Documents: [7, 12]
+
+Search "react hooks" → [7]
+```
+
+## Setting Up the FTS Plugin
+
+Import and add the plugin to your database configuration:
+
+```typescript
+import { Database } from "ctrodb"
+import { ftsPlugin } from "ctrodb"
+
+const schema = {
+  version: 1,
+  collections: {
+    articles: {
+      fields: {
+        title: { type: "string", required: true },
+        body: { type: "string", required: true },
+      },
+      searchable: ["title", "body"],
+    },
+  },
+}
+
+const db = new Database({
+  name: "blog",
+  adapter: "indexeddb",
+  schema,
+  plugins: [ftsPlugin()],
+})
+
+await db.connect()
+```
+
+The `searchable` field tells the plugin which fields to index.
+
+## Searching
+
+Use the `search()` method on the QueryBuilder:
+
+```typescript
+const articles = db.collection("articles")
+
+const results = await articles
+  .query()
+  .search("title", "react")
+  .where("published", true)
+  .sort({ createdAt: "desc" })
+  .limit(10)
+  .fetch()
+```
+
+## Tokenization
+
+The tokenizer converts text into searchable tokens:
+
+```typescript
+import { tokenize } from "ctrodb"
+
+const tokens = tokenize("React Hooks: A Comprehensive Guide")
+// ["react", "hooks", "comprehensive", "guide"]
+```
+
+It converts to lowercase, splits on non-alphanumeric characters, and removes 34 common English stop words.
+
+## Performance
+
+Search performance depends on token count and result set size. For typical datasets, searches complete in milliseconds. The inverted index is stored in a special `_ctrodb_fts` collection.
+
+## When to Use FTS vs. Basic Search
+
+- **Basic search** (`query().search()`) — Case-insensitive substring match, full scan, no index. Good for small datasets.
+- **FTS plugin** — Token-based whole-word matching, inverted index, stop word removal. Good for any dataset size.
+
+## Summary
+
+The FTS plugin brings production-quality search to the browser with zero external dependencies — no search service, no API key, no network request.
+
+### Key Points
+
+- Automatic indexing via plugin hooks on create/update/delete
+- Inverted index with configurable tokenization
+- Stop word removal for better relevance
+- Multi-field search with the query builder
+- Millisecond search times on typical datasets
+- Works with both memory and IndexedDB adapters

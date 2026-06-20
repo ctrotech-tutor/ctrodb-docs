@@ -1,0 +1,225 @@
+---
+title: "Building Reactive UIs with ctrodb and React"
+description: "Use ctrodb's React hooks to build real-time, reactive user interfaces that automatically update when data changes."
+date: 2026-06-21
+author: ctrodb team
+tags:
+  - react
+  - hooks
+  - reactive
+category: React
+---
+
+ctrodb ships with first-class React integration through `ctrodb/react`. With a few hooks — `useQuery`, `useDoc`, and `useMutation` — you can build reactive UIs that automatically re-render when data changes, without manual subscriptions or state management libraries.
+
+## Setting Up
+
+Wrap your app with `DatabaseProvider` to make the database available to all components:
+
+```tsx
+import { Database } from "ctrodb"
+import { DatabaseProvider, useQuery, useMutation } from "ctrodb/react"
+
+const schema = {
+  version: 1,
+  collections: {
+    todos: {
+      fields: {
+        title: { type: "string", required: true },
+        completed: { type: "boolean", default: false },
+        createdAt: { type: "string" },
+      },
+    },
+  },
+}
+
+const db = new Database({ name: "todos", adapter: "indexeddb", schema })
+
+export default function App() {
+  return (
+    <DatabaseProvider db={db}>
+      <TodoApp />
+    </DatabaseProvider>
+  )
+}
+```
+
+## useQuery: Reactive Data Fetching
+
+`useQuery` runs a query and subscribes to change events. When any record in the collection is created, updated, or deleted, it re-fetches and returns fresh data:
+
+```tsx
+import { useState } from "react"
+import { useQuery, useMutation } from "ctrodb/react"
+
+function TodoApp() {
+  const todos = useQuery("todos", (q) =>
+    q.sort({ createdAt: "desc" })
+  )
+
+  return (
+    <div>
+      <h1>My Todos ({todos.length})</h1>
+      <AddTodo />
+      <ul>
+        {todos.map((todo) => (
+          <li key={todo.id}>
+            <input
+              type="checkbox"
+              checked={todo.completed}
+              onChange={() => todo.update({ completed: !todo.completed })}
+            />
+            {todo.title}
+            <button onClick={() => todo.delete()}>×</button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+```
+
+`todos` is an array of `Model` instances, so you can call `todo.update()` and `todo.delete()` directly on each item.
+
+## useDoc: Single Document by ID
+
+For accessing a single record, `useDoc` simplifies the pattern:
+
+```tsx
+import { useDoc } from "ctrodb/react"
+
+function TodoDetail({ id }: { id: string }) {
+  const todo = useDoc("todos", id)
+
+  if (!todo) return <p>Loading...</p>
+
+  return (
+    <div>
+      <h2>{todo.title}</h2>
+      <p>Status: {todo.completed ? "Done" : "Pending"}</p>
+    </div>
+  )
+}
+```
+
+## useMutation: Managed CRUD Operations
+
+`useMutation` provides create, update, and delete operations with loading and error state management:
+
+```tsx
+function AddTodo() {
+  const [title, setTitle] = useState("")
+  const { create, loading, error } = useMutation("todos")
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    await create({
+      title,
+      completed: false,
+      createdAt: new Date().toISOString(),
+    })
+    setTitle("")
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input value={title} onChange={(e) => setTitle(e.target.value)} />
+      <button type="submit" disabled={loading || !title.trim()}>
+        {loading ? "Adding..." : "Add Todo"}
+      </button>
+      {error && <p className="error">{error.message}</p>}
+    </form>
+  )
+}
+```
+
+## Filtered Queries
+
+`useQuery` accepts a query builder callback for complex filters:
+
+```tsx
+// Active todos, newest first
+const activeTodos = useQuery("todos", (q) =>
+  q.where("completed", false).sort({ createdAt: "desc" })
+)
+
+// Paginated results
+const page = useQuery("todos", (q) =>
+  q.sort({ createdAt: "desc" }).limit(10).offset(page * 10)
+)
+```
+
+## Server-Side Rendering
+
+`useQuery` works during SSR by returning an empty array on the server and hydrating on the client. Wrap your component tree with `DatabaseProvider` on the client side only:
+
+```tsx
+"use client"
+
+export function ClientTodoApp() {
+  return (
+    <DatabaseProvider db={db}>
+      <TodoApp />
+    </DatabaseProvider>
+  )
+}
+```
+
+## Custom Dependencies
+
+The third argument to `useQuery` lets you control when queries re-run:
+
+```tsx
+function CategoryTodos({ category }: { category: string }) {
+  // Re-runs the query when category changes
+  const todos = useQuery(
+    "todos",
+    (q) => q.where("category", category),
+    [category]
+  )
+
+  return <List items={todos} />
+}
+```
+
+## Performance Considerations
+
+ctrodb's reactive hooks are designed to be efficient:
+
+- **Change filtering**: `useQuery` checks the `ChangeEvent.collection` before re-fetching, so changes in unrelated collections don't trigger re-renders.
+- **Query comparison**: The query function is only re-executed when its dependencies change.
+- **Model identity**: Models are compared by reference — the same logical record returns the same object reference across re-fetches when possible.
+
+## Example: Real-Time Collaborative Counter
+
+Here's a minimal live counter that syncs across tabs (via IndexedDB):
+
+```tsx
+function Counter() {
+  const { count, increment } = useCounter()
+
+  const items = useQuery("counter", (q) => q.limit(1))
+
+  return (
+    <div>
+      <p>Count: {items[0]?.value ?? 0}</p>
+      <button onClick={() => items[0]?.update({ value: items[0].value + 1 })}>
+        +
+      </button>
+    </div>
+  )
+}
+```
+
+Because IndexedDB is shared across browser tabs, changes in one tab automatically appear in another.
+
+## Summary
+
+ctrodb's React hooks eliminate boilerplate around data fetching, subscriptions, and mutation state:
+
+- `useQuery` for reactive list queries
+- `useDoc` for single-document access
+- `useMutation` for managed CRUD with loading/error states
+- `DatabaseProvider` for injection
+
+You get real-time UI updates without Redux, Zustand, or any external state management — just your database and React.

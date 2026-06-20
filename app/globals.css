@@ -1,3 +1,7 @@
+/* ==========================================================================
+   IMPORTS
+========================================================================== */
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -6,12 +10,21 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ==========================================================================
+   THEME TOKENS (Tailwind v4 @theme mapping)
+========================================================================== */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-selection: var(--primary);
+  --color-selection-foreground: var(--primary-foreground);
+
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-mono);
   --font-heading: var(--font-sans);
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -20,27 +33,37 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
+
   --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+
   --color-destructive: var(--destructive);
+
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
+
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
+
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
+
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
+
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -50,89 +73,399 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ==========================================================================
+   LIGHT THEME (default)
+========================================================================== */
+
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0.005 285);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0.005 285);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0.005 285);
-  --primary: oklch(0.546 0.245 262.881);
+  --fd-layout-width: 97rem;
+
+  /* Base */
+  --background: oklch(0.99 0.004 265);
+  --foreground: oklch(0.19 0.015 270);
+
+  /* Surfaces */
+  --card: oklch(1 0.002 265);
+  --card-foreground: oklch(0.19 0.015 270);
+
+  --popover: oklch(1 0.002 265);
+  --popover-foreground: oklch(0.19 0.015 270);
+
+  /* Brand */
+  --primary: oklch(0.62 0.24 259);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.965 0.01 262.881);
-  --secondary-foreground: oklch(0.25 0.08 262.881);
-  --muted: oklch(0.965 0.01 262.881);
-  --muted-foreground: oklch(0.556 0.02 262.881);
-  --accent: oklch(0.965 0.01 262.881);
-  --accent-foreground: oklch(0.25 0.08 262.881);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0.005 262.881);
-  --input: oklch(0.922 0.005 262.881);
-  --ring: oklch(0.546 0.245 262.881);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0.002 262.881);
-  --sidebar-foreground: oklch(0.145 0.005 285);
-  --sidebar-primary: oklch(0.546 0.245 262.881);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.965 0.01 262.881);
-  --sidebar-accent-foreground: oklch(0.25 0.08 262.881);
-  --sidebar-border: oklch(0.922 0.005 262.881);
-  --sidebar-ring: oklch(0.546 0.245 262.881);
-  --chart-1: oklch(0.546 0.245 262.881);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+
+  /* Supporting */
+  --secondary: oklch(0.96 0.015 255);
+  --secondary-foreground: oklch(0.32 0.07 260);
+
+  --muted: oklch(0.975 0.006 260);
+  --muted-foreground: oklch(0.56 0.018 270);
+
+  --accent: oklch(0.92 0.04 295);
+  --accent-foreground: oklch(0.28 0.09 295);
+
+  /* States */
+  --destructive: oklch(0.64 0.24 25);
+
+  /* UI */
+  --border: oklch(0.91 0.008 260);
+  --input: oklch(0.94 0.008 260);
+  --ring: oklch(0.72 0.18 259);
+
+  --radius: 0.9rem;
+
+  /* Sidebar */
+  --sidebar: oklch(0.985 0.005 260);
+  --sidebar-foreground: oklch(0.22 0.02 270);
+
+  --sidebar-primary: oklch(0.62 0.24 259);
+  --sidebar-primary-foreground: white;
+
+  --sidebar-accent: oklch(0.94 0.02 285);
+  --sidebar-accent-foreground: oklch(0.28 0.08 285);
+
+  --sidebar-border: oklch(0.92 0.008 260);
+  --sidebar-ring: oklch(0.72 0.18 259);
+
+  /* Charts */
+  --chart-1: oklch(0.65 0.23 259);
+  --chart-2: oklch(0.73 0.18 180);
+  --chart-3: oklch(0.78 0.16 130);
+  --chart-4: oklch(0.72 0.22 330);
+  --chart-5: oklch(0.75 0.18 55);
+
+  /* Scrollbar */
+  --scrollbar-size: 8px;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: color-mix(in oklch, var(--primary) 22%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklch, var(--primary) 36%, transparent);
 }
 
+/* ==========================================================================
+   DARK THEME
+========================================================================== */
+
 .dark {
-  --background: oklch(0.145 0.005 285);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0.005 285);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0.005 285);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.75 0.18 262.881);
-  --primary-foreground: oklch(0.15 0.02 285);
-  --secondary: oklch(0.25 0.04 262.881);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.25 0.02 262.881);
-  --muted-foreground: oklch(0.65 0.02 262.881);
-  --accent: oklch(0.27 0.04 262.881);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.27 0.005 262.881);
-  --input: oklch(0.27 0.005 262.881);
-  --ring: oklch(0.75 0.18 262.881);
-  --sidebar: oklch(0.205 0.005 285);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.75 0.18 262.881);
-  --sidebar-primary-foreground: oklch(0.15 0.02 285);
-  --sidebar-accent: oklch(0.25 0.04 262.881);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.27 0.005 262.881);
-  --sidebar-ring: oklch(0.75 0.18 262.881);
-  --chart-1: oklch(0.75 0.18 262.881);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  --background: oklch(0.14 0.012 270);
+  --foreground: oklch(0.96 0.005 270);
+
+  --card: oklch(0.18 0.012 270);
+  --card-foreground: oklch(0.96 0.005 270);
+
+  --popover: oklch(0.18 0.012 270);
+  --popover-foreground: oklch(0.96 0.005 270);
+
+  --primary: oklch(0.74 0.19 258);
+  --primary-foreground: oklch(0.15 0.015 270);
+
+  --secondary: oklch(0.24 0.03 260);
+  --secondary-foreground: oklch(0.95 0.005 270);
+
+  --muted: oklch(0.22 0.01 270);
+  --muted-foreground: oklch(0.7 0.015 270);
+
+  --accent: oklch(0.3 0.06 300);
+  --accent-foreground: white;
+
+  --destructive: oklch(0.72 0.19 25);
+
+  --border: oklch(0.28 0.008 270);
+  --input: oklch(0.24 0.008 270);
+  --ring: oklch(0.78 0.18 258);
+
+  --sidebar: oklch(0.16 0.012 270);
+  --sidebar-foreground: oklch(0.96 0.005 270);
+
+  --sidebar-primary: oklch(0.74 0.19 258);
+  --sidebar-primary-foreground: black;
+
+  --sidebar-accent: oklch(0.26 0.03 290);
+  --sidebar-accent-foreground: white;
+
+  --sidebar-border: oklch(0.28 0.008 270);
+  --sidebar-ring: oklch(0.78 0.18 258);
+
+  --chart-1: oklch(0.75 0.2 258);
+  --chart-2: oklch(0.75 0.16 180);
+  --chart-3: oklch(0.77 0.14 130);
+  --chart-4: oklch(0.76 0.22 330);
+  --chart-5: oklch(0.79 0.16 55);
+
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: color-mix(in oklch, var(--primary) 28%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklch, var(--primary) 45%, transparent);
 }
+
+/* ==========================================================================
+   BASE LAYER
+========================================================================== */
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
+  }
+
+  [id] {
+    scroll-margin-top: 96px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
   }
 }
 
+/* ==========================================================================
+   SCROLLBAR
+========================================================================== */
+
+::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* ==========================================================================
+   ANIMATIONS (Fumadocs-style)
+========================================================================== */
+
+@keyframes fd-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -0.5rem) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes fd-dialog-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -0.5rem) scale(0.95);
+  }
+}
+
+@keyframes fd-collapsible-up {
+  from {
+    height: var(--radix-collapsible-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@keyframes fd-collapsible-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+  }
+}
+
+@keyframes fd-accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@keyframes fd-accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+.animate-fd-dialog-in {
+  animation: fd-dialog-in 0.15s ease-out;
+}
+
+.animate-fd-dialog-out {
+  animation: fd-dialog-out 0.15s ease-in;
+}
+
+.animate-fd-collapsible-up {
+  animation: fd-collapsible-up 0.2s ease-out;
+}
+
+.animate-fd-collapsible-down {
+  animation: fd-collapsible-down 0.2s ease-out;
+}
+
+.animate-fd-accordion-up {
+  animation: fd-accordion-up 0.2s ease-out;
+}
+
+.animate-fd-accordion-down {
+  animation: fd-accordion-down 0.2s ease-out;
+}
+
+/* ==========================================================================
+   UTILITIES
+========================================================================== */
+
+.fd-scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.fd-scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.fd-mask-top {
+  mask-image: linear-gradient(to bottom, transparent, white 12px);
+}
+
+.fd-mask-bottom {
+  mask-image: linear-gradient(to top, transparent, white 12px);
+}
+
+.fd-mask-both {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    white 12px,
+    white calc(100% - 12px),
+    transparent
+  );
+}
+
+.wrap-anywhere {
+  overflow-wrap: anywhere;
+}
+
+.duration-250 {
+  transition-duration: 250ms;
+}
+
+.prose-no-margin p {
+  margin: 0;
+}
+
+/* ==========================================================================
+   PROSE — LINKS / BLOCKQUOTE / HR
+========================================================================== */
+
+.prose :where(a):not(:where([class~="not-prose"] *)) {
+  @apply text-primary no-underline transition-colors hover:underline;
+}
+
+.prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+  @apply border-primary text-muted-foreground;
+}
+
+.prose :where(hr):not(:where([class~="not-prose"] *)) {
+  @apply border-border;
+}
+
+/* ==========================================================================
+   PROSE — TABLES
+========================================================================== */
+
+.prose :where(table):not(:where([class~="not-prose"] *)) {
+  @apply my-7 block w-full overflow-x-auto rounded-xl border border-border bg-card text-sm;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.prose :where(table > *):not(:where([class~="not-prose"] *)) {
+  @apply w-full;
+}
+
+.prose :where(thead):not(:where([class~="not-prose"] *)) {
+  @apply bg-muted/60;
+}
+
+.prose :where(th):not(:where([class~="not-prose"] *)) {
+  @apply border-b border-border px-4 py-3 text-left font-semibold text-foreground;
+}
+
+.prose :where(td):not(:where([class~="not-prose"] *)) {
+  @apply border-b border-border px-4 py-3 align-middle text-muted-foreground;
+}
+
+.prose :where(tr:last-child td):not(:where([class~="not-prose"] *)) {
+  @apply border-b-0;
+}
+
+.prose :where(tbody tr):not(:where([class~="not-prose"] *)) {
+  @apply transition-colors duration-200;
+}
+
+.prose :where(tbody tr:hover):not(:where([class~="not-prose"] *)) {
+  background: color-mix(in oklch, var(--muted) 35%, transparent);
+}
+
+.prose :where(td code, th code):not(:where([class~="not-prose"] *)) {
+  @apply rounded-md border border-border bg-muted/70 px-1.5 py-0.5 text-[0.82em] font-medium;
+}
+
+/* ==========================================================================
+   PROSE — MDX CODE BLOCKS
+========================================================================== */
+
 .prose pre {
-  @apply border border-border bg-muted;
+  @apply my-6 overflow-x-auto rounded-xl border border-border p-4;
+}
+
+.prose pre.shiki {
+  background: transparent !important;
+}
+
+.prose pre code {
+  @apply p-0;
+  background: transparent !important;
+  border: none;
+  font-size: inherit;
 }
 
 .prose code::before,
@@ -140,30 +473,158 @@
   content: none;
 }
 
-.prose :where(pre):not(:where([class~="not-prose"] *)) {
-  @apply overflow-x-auto rounded-lg;
+/* Inline code (not inside <pre>) */
+.prose :where(:not(pre) > code):not(:where([class~="not-prose"] *)) {
+  @apply rounded-md border border-border bg-muted px-1.5 py-0.5 text-sm font-medium;
 }
 
-.prose :where(code):not(:where([class~="not-prose"] *)) {
-  @apply rounded-md bg-muted px-1.5 py-0.5 text-sm font-normal;
+/* ==========================================================================
+   SHIKI — DUAL THEME SYNTAX HIGHLIGHTING
+   Each span carries an inline color (light) + --shiki-dark custom property.
+   Light mode needs no override (inline style already correct) — but
+   Tailwind Typography's `.prose code { color }` rule can out-cascade the
+   inline style depending on layer order, so we explicitly revert color on
+   the wrapping <code>/<pre> to let Shiki's own inline styles win.
+========================================================================== */
+
+.prose pre code,
+.prose pre code span,
+.package-code .shiki,
+.package-code .shiki span {
+  color: revert;
 }
 
-.prose :where(a):not(:where([class~="not-prose"] *)) {
-  @apply text-primary no-underline hover:underline;
+.shiki,
+.shiki span {
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
 }
 
-.prose :where(blockquote):not(:where([class~="not-prose"] *)) {
-  @apply border-primary;
+html.dark .shiki,
+html.dark .shiki span {
+  color: var(--shiki-dark) !important;
+  font-style: var(--shiki-dark-font-style);
+  font-weight: var(--shiki-dark-font-weight);
+  text-decoration: var(--shiki-dark-text-decoration);
 }
 
-.prose :where(table):not(:where([class~="not-prose"] *)) {
-  @apply overflow-hidden;
+/* ==========================================================================
+   SHIKI — PACKAGE TABS (CSS-variable token mode)
+   This output emits --shiki-light / --shiki-dark as custom properties only
+   (no inline `color`), so we must consume them explicitly in both modes.
+   !important is required on both — some other rule in the cascade is
+   setting `color` on these spans and beats a plain declaration.
+========================================================================== */
+
+.package-code .shiki span {
+  color: var(--shiki-light) !important;
 }
 
-.prose :where(th):not(:where([class~="not-prose"] *)) {
-  @apply bg-muted;
+html.dark .package-code .shiki span {
+  color: var(--shiki-dark) !important;
 }
 
-.prose :where(hr):not(:where([class~="not-prose"] *)) {
-  @apply border-border;
+/* ==========================================================================
+   SHIKI — STANDALONE CODE BLOCKS (codeToHtml with defaultColor: false)
+   This call site emits --shiki-light / --shiki-dark as custom properties
+   only (no inline color), same as package-tabs. Must consume explicitly.
+========================================================================== */
+
+.code-block-shiki .shiki {
+  background: transparent !important;
+}
+
+.code-block-shiki .shiki span {
+  color: var(--shiki-light) !important;
+}
+
+html.dark .code-block-shiki .shiki span {
+  color: var(--shiki-dark) !important;
+}
+
+
+/* ==========================================================================
+   PACKAGE TABS
+========================================================================== */
+
+.package-code .shiki {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  width: 100%;
+  min-width: 0;
+}
+
+.package-code .shiki code {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  line-height: inherit;
+  font-size: inherit;
+}
+
+.package-code .shiki .line {
+  display: block;
+}
+
+.package-code pre,
+.package-code code {
+  margin: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.package-code pre::before,
+.package-code pre::after,
+.package-code code::before,
+.package-code code::after {
+  content: none !important;
+}
+
+
+.code-block-ai .shiki {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  width: 100%;
+  min-width: 0;
+}
+
+.code-block-ai .shiki code {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  line-height: inherit;
+  font-size: inherit;
+}
+
+.code-block-ai .shiki .line {
+  display: block;
+}
+
+.code-block-ai pre,
+.code-block-ai code {
+  margin: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.code-block-ai pre::before,
+.code-block-ai pre::after,
+.code-block-ai code::before,
+.code-block-ai code::after {
+  content: none !important;
 }

@@ -63,6 +63,11 @@ deleteMany(ids: ID[]): Promise<void>
 
 Deletes multiple records. Silently skips missing IDs.
 
+```ts
+await notes.deleteMany([1, 2, 3])
+await notes.deleteMany(allIds) // remove all known ids
+```
+
 ### put()
 
 ```ts
@@ -70,6 +75,14 @@ put(data: T & { id?: ID }): Promise<Model<T> & T>
 ```
 
 Upsert — updates if `id` exists, creates otherwise.
+
+```ts
+// Create with specific id (upsert)
+await notes.put({ id: 42, title: "Hello", body: "..." })
+
+// Update if exists, create if not
+await notes.put({ id: 42, title: "Updated title" })
+```
 
 ### count()
 

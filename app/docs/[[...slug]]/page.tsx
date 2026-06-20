@@ -1,66 +1,111 @@
 import { getDoc, getAllDocSlugs } from "@/lib/content"
 import { notFound } from "next/navigation"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb"
-import { TableOfContents } from "@/components/toc"
 import Link from "next/link"
+import { TableOfContents } from "@/components/toc"
+import { TocPopover } from "@/components/toc-popover"
+import { CopyMarkdown } from "@/components/copy-markdown"
+import { OpenDropdown } from "@/components/open-dropdown"
+import { DocShare } from "@/components/doc-share"
+import { DocNav } from "@/components/doc-nav"
+import { DocFeedback } from "@/components/feedback"
+import { CodeCopyProvider } from "@/components/code-copy"
+import { ChevronRight, ExternalLink } from "lucide-react"
+
+function getBreadcrumbs(slug: string[]): { label: string; href: string }[] {
+  const groups: Record<string, string> = {
+    "getting-started": "Getting Started",
+    "core-concepts": "Core Concepts",
+    adapters: "Adapters",
+    plugins: "Plugins",
+    react: "React",
+    "api-reference": "API Reference",
+    examples: "Examples",
+    migration: "Migration",
+  }
+
+  const crumbs: { label: string; href: string }[] = [{ label: "Docs", href: "/docs" }]
+
+  if (slug.length > 0 && groups[slug[0]]) {
+    crumbs.push({ label: groups[slug[0]], href: `/docs/${slug[0]}` })
+  }
+
+  return crumbs
+}
 
 export default async function DocPage(props: { params: Promise<{ slug?: string[] }> }) {
   const { slug } = await props.params
+  const slugPath = (slug || ["getting-started", "installation"]).join("/")
   const result = await getDoc(slug || ["getting-started", "installation"])
   if (!result) notFound()
 
-  const { content, frontmatter, toc } = result
-
-  const breadcrumbs = slug
-    ? slug.map((part, i) => ({
-        label: part.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-        href: "/docs/" + slug.slice(0, i + 1).join("/"),
-        current: i === slug.length - 1,
-      }))
-    : []
+  const { content, frontmatter, toc, prev, next, lastUpdated, raw } = result
 
   return (
-    <div className="mx-auto flex max-w-[90rem]">
-      <article className="min-w-0 flex-1 px-6 py-10 sm:px-10 lg:px-16">
-        <Breadcrumb className="mb-6">
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/docs/getting-started/installation">Docs</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          {breadcrumbs.map((crumb, i) => (
-            <BreadcrumbItem key={crumb.href}>
-              {crumb.current ? (
-                <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-              ) : (
-                <>
-                  <BreadcrumbLink asChild>
-                    <Link href={crumb.href}>{crumb.label}</Link>
-                  </BreadcrumbLink>
-                  <BreadcrumbSeparator />
-                </>
-              )}
-            </BreadcrumbItem>
-          ))}
-        </Breadcrumb>
+    <>
+      <TocPopover items={toc} activeId="" />
+      <div className="mx-auto flex max-w-[90rem]">
+        <article
+          id="nd-page"
+          className="flex flex-col w-full max-w-[900px] mx-auto [grid-area:main] px-4 py-6 gap-4 md:px-6 md:pt-8 xl:px-8 xl:pt-14"
+        >
+          <h1 className="text-[1.75em] font-semibold">{frontmatter.title}</h1>
+          {frontmatter.description && (
+            <p className="text-lg text-muted-foreground mb-2">{frontmatter.description}</p>
+          )}
 
-        <h1 className="mb-2 text-3xl font-bold tracking-tight">{frontmatter.title}</h1>
-        {frontmatter.description && (
-          <p className="mb-8 text-lg text-muted-foreground">{frontmatter.description}</p>
-        )}
+          {/* Breadcrumbs */}
+          <nav aria-label="Breadcrumb" className="mb-2">
+            <ol className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+              {getBreadcrumbs(slug || ["getting-started", "installation"]).map((crumb, i, arr) => (
+                <li key={crumb.href} className="inline-flex items-center gap-1.5">
+                  {i > 0 && <ChevronRight className="size-3.5" />}
+                  {i < arr.length - 1 ? (
+                    <Link href={crumb.href} className="hover:text-foreground transition-colors">
+                      {crumb.label}
+                    </Link>
+                  ) : (
+                    <span className="text-foreground">{crumb.label}</span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </nav>
 
-        <div className="prose prose-zinc max-w-none dark:prose-invert">
-          {content}
-        </div>
-      </article>
+          <div className="flex flex-row flex-wrap gap-2 items-center border-b pb-6">
+            <CopyMarkdown raw={raw} />
+            <OpenDropdown slug={slugPath} />
+            <DocShare slug={slugPath} title={frontmatter.title} description={frontmatter.description} />
+          </div>
 
-      <aside className="hidden w-56 shrink-0 xl:block">
-        <div className="sticky top-20 px-4 py-10">
+          <CodeCopyProvider>
+            <div className="prose flex-1 text-foreground/90 max-w-none dark:prose-invert prose-headings:scroll-mt-28 prose-headings:group/heading prose-a:no-underline hover:prose-a:underline">
+              {content}
+            </div>
+          </CodeCopyProvider>
+
+          <div className="flex items-center justify-between border-y py-3">
+            <DocFeedback slug={slugPath} title={frontmatter.title} />
+            <a
+              href={`https://github.com/ctrotech-tutor/ctrodb-docs/blob/main/content/docs/${slugPath}.mdx`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ExternalLink className="size-3" />
+              Edit on GitHub
+            </a>
+          </div>
+
+          <p className="text-sm text-muted-foreground">Last updated on {lastUpdated}</p>
+
+          <DocNav prev={prev} next={next} />
+        </article>
+
+        <aside className="hidden xl:block">
           <TableOfContents items={toc} />
-        </div>
-      </aside>
-    </div>
+        </aside>
+      </div>
+    </>
   )
 }
 

@@ -1,0 +1,203 @@
+---
+title: Custom Adapters
+description: Building custom storage backends for ctrodb
+---
+
+Any object implementing the `StorageAdapter` interface can serve as a ctrodb backend. This lets you persist data anywhere — REST APIs, localStorage, SQLite (via Node), WebSockets, or your own custom storage engine.
+
+## StorageAdapter Interface
+
+```ts
+import type { StorageAdapter, SchemaConfig, ID, QueryCondition } from "ctrodb"
+
+interface StorageAdapter {
+  readonly name: string
+
+  connect(name: string, schema: SchemaConfig | null): Promise<void>
+  disconnect(): Promise<void>
+  isConnected(): boolean
+
+  getSchemaVersion(): Promise<number>
+  setSchemaVersion(version: number): Promise<void>
+
+  create(collection: string, data: unknown): Promise<unknown>
+  findById(collection: string, id: ID): Promise<unknown>
+  findAll(collection: string): Promise<unknown[]>
+  update(collection: string, id: ID, changes: unknown): Promise<unknown>
+  delete(collection: string, id: ID): Promise<void>
+  deleteMany(collection: string, ids: ID[]): Promise<void>
+  scanIndex(
+    collection: string,
+    indexName: string,
+    range: IDBKeyRange | undefined,
+    postFilters: QueryCondition[],
+  ): Promise<unknown[]>
+
+  transaction<T>(fn: (ctx: TransactionContext) => Promise<T>): Promise<T>
+  getMetadata(key: string): Promise<unknown>
+  setMetadata(key: string, value: unknown): Promise<void>
+}
+```
+
+## Minimal example: localStorage adapter
+
+```ts
+import type { StorageAdapter, ID, QueryCondition } from "ctrodb"
+
+class LocalStorageAdapter implements StorageAdapter {
+  readonly name = "localstorage"
+
+  async connect(name: string, schema: SchemaConfig | null): Promise<void> {
+    // Initialize storage namespace
+  }
+
+  async disconnect(): Promise<void> {}
+
+  isConnected(): boolean { return true }
+
+  async findAll(collection: string): Promise<unknown[]> {
+    const raw = localStorage.getItem(`${this.name}:${collection}`)
+    return raw ? JSON.parse(raw) : []
+  }
+
+  async create(collection: string, data: unknown): Promise<unknown> {
+    const records = await this.findAll(collection)
+    const id = records.length > 0
+      ? Math.max(...records.map((r: any) => r.id)) + 1
+      : 1
+    const record = { ...(data as object), id }
+    records.push(record)
+    localStorage.setItem(
+      `${this.name}:${collection}`,
+      JSON.stringify(records),
+    )
+    return record
+  }
+
+  // ... implement remaining methods
+}
+
+// Usage
+const db = new Database({
+  adapter: new LocalStorageAdapter(),
+})
+await db.connect()
+```
+
+## Using createAdapter
+
+`createAdapter()` is a convenience factory for the built-in adapters:
+
+```ts
+import { createAdapter } from "ctrodb"
+
+// Explicit
+const mem = createAdapter("memory")
+const idb = createAdapter("indexeddb")
+
+// Auto-detect (browser → IndexedDB, Node → Memory)
+const auto = createAdapter()
+```
+
+## Passing via config
+
+```ts
+const db = new Database({
+  adapter: createAdapter("memory"),
+})
+
+// Or pass an instance directly
+class MyAdapter implements StorageAdapter { ... }
+const db = new Database({
+  adapter: new MyAdapter(),
+})
+```
+
+## Transaction support
+
+Adapters must implement `transaction<T>(fn)`. The `TransactionContext` provides collection-scoped CRUD methods:
+
+```ts
+class MyTransactionContext implements TransactionContext {
+  collection(name: string): {
+    findAll(): Promise<unknown[]>
+    findById(id: ID): Promise<unknown>
+    create(data: unknown): Promise<unknown>
+    update(id: ID, data: unknown): Promise<unknown>
+    delete(id: ID): Promise<void>
+  } {
+    // Return a bound collection proxy
+    return createBoundCollection(name, this.#store)
+  }
+}
+
+async transaction<T>(fn: (ctx: TransactionContext) => Promise<T>): Promise<T> {
+  const snapshot = this.#snapshot()
+  try {
+    return await fn(new MyTransactionContext(this))
+  } catch (error) {
+    this.#restore(snapshot) // rollback
+    throw error
+  }
+}
+```
+
+## scanIndex
+
+The `scanIndex` method handles indexed lookups. It receives the collection name, index name, an optional `IDBKeyRange`, and post-filter conditions. For simple in-memory adapters you can use a full scan:
+
+```ts
+async scanIndex(
+  collection: string,
+  indexName: string,
+  range: IDBKeyRange | undefined,
+  postFilters: QueryCondition[],
+): Promise<unknown[]> {
+  let results = await this.findAll(collection)
+
+  // Range filter
+  if (range) {
+    results = results.filter(r => {
+      const val = (r as any)[indexName]
+      if (range.lower !== undefined) {
+        if (range.lowerOpen ? val <= range.lower : val < range.lower)
+          return false
+      }
+      if (range.upper !== undefined) {
+        if (range.upperOpen ? val >= range.upper : val > range.upper)
+          return false
+      }
+      return true
+    })
+  }
+
+  // Post-condition filters
+  for (const cond of postFilters) {
+    results = results.filter(r => {
+      const val = (r as any)[cond.field]
+      switch (cond.op) {
+        case "==": return val === cond.value
+        case "!=": return val !== cond.value
+        case ">": return val > cond.value
+        // ...
+      }
+    })
+  }
+
+  return results
+}
+```
+
+## Metadata methods
+
+`getMetadata` / `setMetadata` are used to store internal state (schema version, etc.):
+
+```ts
+async getMetadata(key: string): Promise<unknown> {
+  return this.#meta.get(key)
+}
+
+async setMetadata(key: string, value: unknown): Promise<void> {
+  this.#meta.set(key, value)
+}
+```

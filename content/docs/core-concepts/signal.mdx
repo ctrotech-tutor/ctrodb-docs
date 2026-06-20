@@ -1,0 +1,95 @@
+---
+title: Signal
+description: Reactive state primitive used by ctrodb's change notification system
+---
+
+`Signal` is a lightweight observable value container. ctrodb uses it internally for change events, and you can use it directly for reactive state management.
+
+## Creating a Signal
+
+```ts
+import { Signal } from "ctrodb"
+
+const count = new Signal(0)
+const name = new Signal("hello")
+```
+
+## Reading and writing
+
+```ts
+count.value = 42
+console.log(count.value) // 42
+
+// Signals skip notification when the new value is the same (Object.is check)
+count.value = 42 // no subscribers notified
+```
+
+## Subscribing
+
+```ts
+const unsub = count.subscribe((value) => {
+  console.log("count changed:", value)
+})
+
+count.value = 10 // logs: count changed: 10
+unsub()          // stop listening
+```
+
+Each subscriber receives the new value on every change. Returns an unsubscribe function.
+
+## Checking subscribers
+
+```ts
+count.hasSubscriptions  // boolean
+count.listenerCount      // number
+```
+
+## Use case: cross-component reactivity
+
+Signals work outside React's render cycle, making them useful for shared state between non-React code and UI components.
+
+```ts
+import { Signal } from "ctrodb"
+
+export const currentUser = new Signal<User | null>(null)
+
+// In a service layer:
+currentUser.value = await fetchUser()
+
+// In a React component:
+import { useEffect, useState } from "react"
+import { currentUser } from "./signals"
+
+function Avatar() {
+  const [user, setUser] = useState(currentUser.value)
+  useEffect(() => currentUser.subscribe(setUser), [])
+  return user ? <img src={user.avatar} /> : null
+}
+```
+
+## How ctrodb uses Signal
+
+The `Database.on()` method is powered by a Signal:
+
+```ts
+// Internal — Signal<ChangeEvent | null>
+this.#changeSignal = new Signal<ChangeEvent | null>(null)
+
+// db.on(callback) subscribes and filters null
+on(callback) {
+  return this.#changeSignal.subscribe((event) => {
+    if (event) callback(event)
+  })
+}
+```
+
+## API Reference
+
+| Method / Property | Signature | Description |
+|---|---|---|
+| `constructor()` | `new Signal<T>(initialValue)` | Creates a signal with initial value |
+| `value` (get) | `T` | Returns current value |
+| `value` (set) | `T` | Sets value and notifies subscribers (skips if unchanged) |
+| `subscribe()` | `(fn: (value: T) => void) => () => void` | Subscribes to changes, returns unsubscribe |
+| `hasSubscriptions` | `boolean` | Whether any subscribers exist |
+| `listenerCount` | `number` | Number of subscribers |

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ctrodb Notes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: "class" }
+  </script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 sm:p-6">
+  <div class="max-w-2xl mx-auto">
+
+    <h1 class="text-3xl font-bold mb-8 flex items-center gap-3">
+      <span class="text-blue-400">&#9670;</span>
+      ctrodb Notes
+    </h1>
+
+    <!-- Search -->
+    <div class="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700">
+      <input
+        id="search"
+        type="text"
+        placeholder="Search notes by title..."
+        class="w-full bg-gray-700 rounded px-3 py-2 text-gray-100 placeholder-gray-400 border border-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+      />
+    </div>
+
+    <!-- New Note Form -->
+    <div class="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700">
+      <h2 class="font-semibold mb-3 text-gray-300">New Note</h2>
+      <input
+        id="title"
+        type="text"
+        placeholder="Title (required)"
+        required
+        class="w-full bg-gray-700 rounded px-3 py-2 mb-3 text-gray-100 placeholder-gray-400 border border-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+      />
+      <textarea
+        id="body"
+        placeholder="Body (optional)"
+        rows="3"
+        class="w-full bg-gray-700 rounded px-3 py-2 mb-3 text-gray-100 placeholder-gray-400 border border-gray-600 focus:outline-none focus:border-blue-500 transition-colors resize-none"
+      ></textarea>
+      <input
+        id="tags"
+        type="text"
+        placeholder="Tags (comma-separated)"
+        class="w-full bg-gray-700 rounded px-3 py-2 mb-3 text-gray-100 placeholder-gray-400 border border-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+      />
+      <button
+        id="add-note-btn"
+        class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-medium transition-colors"
+      >
+        + Add Note
+      </button>
+    </div>
+
+    <!-- Notes List -->
+    <div id="notes-container" class="space-y-3"></div>
+
+  </div>
+
+  <script src="https://unpkg.com/ctrodb@1.0.1/dist/index.global.js"></script>
+  <script>
+  const { Database } = CtroDB
+
+  const schema = {
+    version: 2,
+    collections: {
+      notes: {
+        fields: {
+          title: { type: "string", required: true },
+          body: { type: "string", default: "" },
+          tags: { type: "array", items: { type: "string" }, default: [] },
+          pinned: { type: "boolean", default: false },
+          createdAt: { type: "string", default: () => new Date().toISOString() },
+        },
+        indexes: [
+          { field: "createdAt" },
+          { field: "pinned" },
+        ],
+      },
+    },
+  }
+
+  let db, notes, container
+
+  function escapeHtml(str) {
+    const div = document.createElement("div")
+    div.textContent = str
+    return div.innerHTML
+  }
+
+  function noteCard(note) {
+    const isPinned = note.pinned
+    return `
+      <div class="bg-gray-800 rounded-lg p-4 border transition-colors ${isPinned ? "border-yellow-500/60" : "border-gray-700"}" data-id="${note.id}">
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex-1 min-w-0">
+            <h3 class="font-semibold text-lg truncate">${escapeHtml(note.title)}</h3>
+            ${note.body ? `<p class="text-gray-400 mt-1 line-clamp-3">${escapeHtml(note.body)}</p>` : ""}
+            ${note.tags.length ? `
+              <div class="flex flex-wrap gap-2 mt-3">
+                ${note.tags.map(t => `<span class="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">${escapeHtml(t)}</span>`).join("")}
+              </div>
+            ` : ""}
+            <p class="text-xs text-gray-500 mt-3">${new Date(note.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+          </div>
+          <div class="flex gap-1 shrink-0">
+            <button class="pin-btn p-1.5 rounded hover:bg-gray-700 transition-colors ${isPinned ? "text-yellow-400" : "text-gray-500 hover:text-yellow-400"}" title="${isPinned ? "Unpin" : "Pin"}">
+              ${isPinned ? "\u2605" : "\u2606"}
+            </button>
+            <button class="delete-btn p-1.5 rounded hover:bg-gray-700 text-gray-500 hover:text-red-400 transition-colors" title="Delete">\u2715</button>
+          </div>
+        </div>
+      </div>
+    `
+  }
+
+  function clearForm() {
+    document.getElementById("title").value = ""
+    document.getElementById("body").value = ""
+    document.getElementById("tags").value = ""
+  }
+
+  async function render(message) {
+    const query = document.getElementById("search").value.trim()
+    const list = query
+      ? await notes.query().search("title", query).fetch()
+      : await notes.query().sort({ pinned: "desc", createdAt: "desc" }).fetch()
+
+    if (list.length === 0) {
+      container.innerHTML = `<p class="text-gray-500 text-center py-8">${message || (query ? "No notes match your search." : "No notes yet. Create one above!")}</p>`
+      return
+    }
+
+    container.innerHTML = list.map(noteCard).join("")
+  }
+
+  async function init() {
+    db = new Database({ name: "notes-app", schema })
+    await db.connect()
+    notes = db.collection("notes")
+    container = document.getElementById("notes-container")
+
+    // Add note
+    document.getElementById("add-note-btn").addEventListener("click", async () => {
+      const title = document.getElementById("title").value.trim()
+      const body = document.getElementById("body").value.trim()
+      const rawTags = document.getElementById("tags").value
+
+      if (!title) { alert("Title is required."); return }
+
+      const tags = rawTags.split(",").map(t => t.trim()).filter(Boolean)
+      await notes.create({ title, body, tags })
+      clearForm()
+      await render()
+    })
+
+    // Search with debounce
+    let searchTimer
+    document.getElementById("search").addEventListener("input", () => {
+      clearTimeout(searchTimer)
+      searchTimer = setTimeout(() => render(), 200)
+    })
+
+    // Event delegation for pin and delete
+    container.addEventListener("click", async (e) => {
+      const card = e.target.closest("[data-id]")
+      if (!card) return
+      const id = Number(card.dataset.id)
+
+      if (e.target.closest(".pin-btn")) {
+        const note = await notes.get(id)
+        if (note) {
+          await note.update({ pinned: !note.pinned })
+          await render()
+        }
+        return
+      }
+
+      if (e.target.closest(".delete-btn")) {
+        await notes.delete(id)
+        await render()
+      }
+    })
+
+    await render()
+  }
+
+  init()
+  </script>
+</body>
+</html>

@@ -1,0 +1,239 @@
+---
+title: "Mastering ctrodb Queries: From Simple Filters to Complex Searches"
+description: "A deep dive into the ctrodb QueryBuilder — where, sort, limit, offset, OR groups, search, and query planning internals."
+date: 2026-06-24
+author: ctrodb team
+tags:
+  - queries
+  - query-builder
+  - search
+category: Queries
+---
+
+The ctrodb QueryBuilder provides a fluent, chainable API for querying your data. Whether you need simple equality filters, paginated results, full-text search, or complex logical conditions, the query system handles it efficiently with index-aware planning.
+
+## Basic Filtering
+
+Every query starts with `collection.query()`. The simplest filter uses a single field:
+
+```typescript
+const admins = await users.query().where("role", "admin").fetch()
+```
+
+When you omit the operator, it defaults to `"=="` (equality). You can also specify an operator explicitly:
+
+```typescript
+const adults = await users.query().where("age", ">=", 18).fetch()
+
+const minors = await users.query().where("age", "<", 18).fetch()
+
+const notAdmins = await users.query().where("role", "!=", "admin").fetch()
+
+const seniors = await users.query().where("age", ">=", 65).fetch()
+
+const juniors = await users.query().where("age", "<=", 25).fetch()
+```
+
+Supported operators: `==`, `!=`, `>`, `<`, `>=`, `<=`.
+
+## Chaining Conditions (AND)
+
+Multiple `.where()` calls are combined with AND logic:
+
+```typescript
+const results = await users
+  .query()
+  .where("role", "admin")
+  .where("age", ">=", 18)
+  .fetch()
+```
+
+This is equivalent to `role == "admin" AND age >= 18`.
+
+## OR Groups
+
+For OR logic, use `orWhere`:
+
+```typescript
+const results = await users
+  .query()
+  .where("age", 25)
+  .orWhere((q) => q.where("age", 35))
+  .fetch()
+```
+
+This returns users where `age == 25 OR age == 35`.
+
+You can also chain multiple conditions inside an OR group:
+
+```typescript
+const results = await users
+  .query()
+  .where("role", "admin")
+  .orWhere((q) =>
+    q.where("age", 25).where("experience", "senior")
+  )
+  .fetch()
+```
+
+This is `role == "admin" OR (age == 25 AND experience == "senior")`.
+
+## Sorting
+
+Use `.sort()` with an object specifying field and direction:
+
+```typescript
+// Ascending
+const sorted = await users.query().sort({ name: "asc" }).fetch()
+
+// Descending
+const sorted = await users.query().sort({ age: "desc" }).fetch()
+```
+
+Only single-field sort is currently supported. Combine with limit and offset for pagination.
+
+## Pagination
+
+```typescript
+const page = await users
+  .query()
+  .sort({ createdAt: "desc" })
+  .limit(20)
+  .offset(0)
+  .fetch()
+
+const page2 = await users
+  .query()
+  .sort({ createdAt: "desc" })
+  .limit(20)
+  .offset(20)
+  .fetch()
+```
+
+## Convenience Methods
+
+### `first()` — Get the first matching record
+
+```typescript
+const admin = await users.query().where("role", "admin").first()
+// Returns Model | undefined
+```
+
+### `count()` — Get the count of matching records
+
+```typescript
+const total = await users.query().where("role", "admin").count()
+```
+
+### `toArray()` — Get plain objects instead of Models
+
+```typescript
+const admins = await users.query().where("role", "admin").toArray()
+// Returns T[] instead of Model<T>[]
+```
+
+Useful for serialization or passing data to non-ctrodb code.
+
+## Basic Search
+
+ctrodb includes a built-in case-insensitive substring search:
+
+```typescript
+const results = await articles
+  .query()
+  .search("title", "typescript")
+  .fetch()
+```
+
+This performs a case-insensitive `String.includes()` match. For production-grade full-text search with an inverted index, see the FTS plugin (covered in a separate guide).
+
+## How Query Execution Works
+
+When you call `.fetch()`, ctrodb:
+
+1. **Plans the query** — The `QueryPlanner` analyzes your conditions and available indexes to choose the best strategy:
+   - `id_lookup` — Direct lookup by ID (fastest)
+   - `index_scan` — Uses an indexed field for range scanning
+   - `full_scan` — Loads all records and filters in memory
+
+2. **Executes the plan** — The `QueryExecutor` runs the plan against the storage adapter, applying post-filters for conditions that can't be pushed down to the index.
+
+3. **Post-processes** — Results are sorted, offset, and limited in memory.
+
+### Index Priority
+
+The planner assigns priority to indexed conditions:
+- Unique equality (`==`) — highest priority
+- Non-unique equality (`==`)
+- Range operators (`>`, `<`, `>=`, `<=`)
+- Inequality (`!=`) — lowest priority
+
+## Practical Example: Product Catalog
+
+Here's a more realistic example combining multiple query features:
+
+```typescript
+const schema = {
+  version: 1,
+  collections: {
+    products: {
+      fields: {
+        name: { type: "string", required: true },
+        price: { type: "number", required: true },
+        category: { type: "string" },
+        inStock: { type: "boolean" },
+        tags: { type: "array", items: { type: "string" } },
+      },
+      indexes: [
+        { field: "category" },
+        { field: "price" },
+      ],
+    },
+  },
+}
+
+// Products in "electronics" or "accessories", sorted by price
+const results = await products
+  .query()
+  .where("category", "electronics")
+  .orWhere((q) => q.where("category", "accessories"))
+  .where("inStock", true)
+  .sort({ price: "asc" })
+  .limit(24)
+  .offset(0)
+  .fetch()
+```
+
+## Debugging Queries
+
+Set the log level to `"debug"` on your database to see query plans:
+
+```typescript
+const db = new Database({
+  name: "shop",
+  schema,
+  logLevel: "debug", // logs query plans and execution
+})
+```
+
+The console will show the selected strategy, index usage, and execution timing.
+
+## Query Performance Tips
+
+1. **Define indexes** on fields you query frequently — the planner uses them automatically.
+2. **Lead with your most selective condition** — equality on an indexed field is fastest.
+3. **Use `limit()`** whenever you don't need all results.
+4. **Prefer `count()` over `fetch().length`** — the count is computed from the filtered result set length without materializing models.
+5. **Avoid `!=` on indexed fields** — inequality can't use index ranges efficiently.
+
+## Summary
+
+The ctrodb QueryBuilder provides:
+
+- Fluent chainable API with `where`, `orWhere`, `sort`, `limit`, `offset`
+- Convenience methods: `first()`, `count()`, `toArray()`
+- Index-aware query planning for performance
+- Built-in substring search
+- AND/OR logic for complex conditions
+
+Whether you're building a simple filter or a complex data grid, the query system is designed to be both expressive and performant.

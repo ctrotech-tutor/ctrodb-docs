@@ -6,7 +6,7 @@ description: Use ctrodb directly in the browser via script tag
 ## Unpkg
 
 ```html
-<script src="https://unpkg.com/ctrodb@latest/dist/index.global.js"></script>
+<script src="https://unpkg.com/ctrodb@1.0.1/dist/index.global.js"></script>
 <script>
   const { Database } = CtroDB
 
@@ -32,7 +32,29 @@ description: Use ctrodb directly in the browser via script tag
 ## jsDelivr
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/ctrodb@latest/dist/index.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ctrodb@1.0.1/dist/index.global.js"></script>
+```
+
+## esm.sh (import maps)
+
+For projects that use ES modules with import maps:
+
+```html
+<script type="importmap">
+{
+  "imports": {
+    "ctrodb": "https://esm.sh/ctrodb@1.0.2"
+  }
+}
+</script>
+<script type="module">
+import { Database } from "ctrodb"
+
+const db = new Database({ schema: { version: 1, collections: { notes: { fields: { text: { type: "string" } } } } } })
+await db.connect()
+const notes = db.collection("notes")
+await notes.create({ text: "Hello from esm.sh!" })
+</script>
 ```
 
 ## What works

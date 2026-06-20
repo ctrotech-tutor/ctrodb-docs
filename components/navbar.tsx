@@ -1,64 +1,220 @@
-import Link from "next/link"
-import { Menu } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "@/components/ui/sheet"
-import { Sidebar } from "@/components/sidebar"
-import { getSidebar } from "@/lib/sidebar"
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Search } from "lucide-react";
+
+import { ThemeToggle } from "@/components/theme-toggle";
+import { MobileNav } from "@/components/mobile-nav";
+import { useSearch } from "@/lib/search-context";
 
 const navLinks = [
-  { href: "/docs/getting-started/installation", label: "Docs" },
-  { href: "/blog", label: "Blog" },
-]
+  {
+    href: "/docs/getting-started/installation",
+    label: "Documentation",
+  },
+  {
+    href: "/playground",
+    label: "Playground",
+  },
+  {
+    href: "/blog",
+    label: "Blog",
+  },
+];
 
 export function Navbar() {
-  const groups = getSidebar()
+  const pathname = usePathname();
+  const { open } = useSearch();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-360 items-center gap-4 px-4 sm:px-6 lg:px-8">
-        <Sheet>
-          <SheetTrigger asChild className="lg:hidden">
-            <Button variant="ghost" size="icon" aria-label="Open menu">
-              <Menu className="size-4" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0">
-            <SheetTitle className="sr-only">Navigation menu</SheetTitle>
-            <div className="flex h-14 items-center border-b border-border px-4 font-semibold">
-              ctrodb
+    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-xl">
+      <nav className="mx-auto flex h-14 max-w-(--fd-layout-width) items-center px-4">
+        {/* LEFT */}
+        {/* LEFT */}
+        <div className="flex min-w-0 items-center">
+          {/* Brand */}
+          <Link
+            href="/"
+            className="
+      group
+      inline-flex
+      shrink-0
+      items-center
+      gap-3
+      rounded-xl
+      transition-opacity
+      hover:opacity-90
+    "
+          >
+            <Image
+              src="/icon.svg"
+              alt="ctrodb"
+              width={36}
+              height={36}
+              priority
+              className="
+        h-9
+        w-9
+        shrink-0
+        transition-transform
+        duration-300
+        group-hover:scale-[1.04]
+      "
+            />
+
+            <div className="flex flex-col leading-none">
+              <span
+                className="
+          text-[1rem]
+          font-semibold
+          tracking-[-0.04em]
+          text-foreground
+        "
+              >
+                ctrodb
+              </span>
+
+              <span
+                className="
+          hidden
+          text-[11px]
+          font-medium
+          text-muted-foreground
+          lg:block sr-only
+        "
+              >
+                Developer Database
+              </span>
             </div>
-            <div className="overflow-y-auto p-4">
-              <Sidebar groups={groups} />
-            </div>
-          </SheetContent>
-        </Sheet>
+          </Link>
 
-        <Link href="/" className="flex items-center gap-2 font-semibold shrink-0">
-          ctrodb
-        </Link>
+          {/* Nav */}
+          <ul className="ml-8 hidden items-center gap-1 md:flex">
+            {navLinks.map((link) => {
+              const active = pathname.startsWith(link.href);
 
-        <nav className="hidden items-center gap-1 sm:flex">
-          {navLinks.map((link) => (
-            <Button key={link.href} variant="ghost" size="sm" asChild>
-              <Link href={link.href}>{link.label}</Link>
-            </Button>
-          ))}
-        </nav>
+              return (
+                <li key={link.href} className="list-none">
+                  <Link
+                    href={link.href}
+                    data-active={active}
+                    className="
+              relative
+              inline-flex
+              h-9
+              items-center
+              rounded-lg
+              px-3.5
+              text-sm
+              font-medium
+              text-muted-foreground
+              transition-all
 
-        <div className="flex-1" />
+              hover:bg-accent/50
+              hover:text-foreground
 
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" asChild aria-label="GitHub">
-            <Link href="https://github.com/ctrotech-tutor/ctrodb" target="_blank" rel="noopener noreferrer">
-              <svg viewBox="0 0 24 24" className="size-4" fill="currentColor">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-              </svg>
-            </Link>
-          </Button>
-          <ThemeToggle />
+              data-[active=true]:bg-accent/50
+              data-[active=true]:text-foreground
+              data-[active=true]:shadow-xs
+            "
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </div>
-      </div>
+
+        {/* RIGHT */}
+        <div className="ml-auto flex items-center gap-2">
+          {/* Search */}
+          <button
+            onClick={open}
+            aria-label="Search"
+            className="
+              hidden
+              lg:flex
+              h-9
+              min-w-[250px]
+              items-center
+              gap-2
+              rounded-full
+              border
+              border-border/70
+              bg-secondary/40
+              px-3
+              text-sm
+              text-muted-foreground
+              transition-all
+              hover:bg-accent
+              hover:text-foreground
+            "
+          >
+            <Search className="size-4 shrink-0" />
+
+            <span>Search documentation...</span>
+
+            <div className="ml-auto flex gap-1">
+              <kbd className="rounded-md border bg-background px-1.5 py-0.5 text-[11px]">
+                Ctrl
+              </kbd>
+
+              <kbd className="rounded-md border bg-background px-1.5 py-0.5 text-[11px]">
+                K
+              </kbd>
+            </div>
+          </button>
+
+          {/* Mobile Search */}
+          <button
+            onClick={open}
+            aria-label="Open Search"
+            className="
+              lg:hidden
+              inline-flex
+              size-9
+              items-center
+              justify-center
+              rounded-md
+              hover:bg-accent
+            "
+          >
+            <Search className="size-4.5" />
+          </button>
+
+          <div className="md:hidden">
+            <MobileNav />
+          </div>
+
+          <div className="hidden md:inline-flex">
+            <ThemeToggle />
+          </div>
+
+          {/* GitHub */}
+          <Link
+            href="https://github.com/ctrotech-tutor/ctrodb"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="GitHub"
+            className="
+              inline-flex
+              size-9
+              items-center
+              justify-center
+              rounded-md
+              transition-colors
+              hover:bg-accent
+            "
+          >
+            <svg viewBox="0 0 24 24" className="size-5" fill="currentColor">
+              <path d="M12 .297c-6.63 0-12 5.373-12 12c0 5.303 3.438 9.8 8.205 11.385c.6.113.82-.258.82-.577v-2.04c-3.338.724-4.042-1.61-4.042-1.61c-.546-1.39-1.333-1.76-1.333-1.76c-1.087-.744.084-.729.084-.729c1.205.084 1.838 1.236 1.838 1.236c1.07 1.835 2.809 1.305 3.495.998c.108-.776.417-1.305.76-1.605c-2.665-.3-5.466-1.332-5.466-5.93c0-1.31.465-2.38 1.235-3.22c-.135-.303-.54-1.523.105-3.176c0 0 1.005-.322 3.3 1.23c.96-.267 1.98-.399 3-.405c1.02.006 2.04.138 3 .405c2.28-1.552 3.285-1.23 3.285-1.23c.645 1.653.24 2.873.12 3.176c.765.84 1.23 1.91 1.23 3.22c0 4.61-2.805 5.625-5.475 5.92c.42.36.81 1.096.81 2.22v3.286c0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297C24 5.67 18.627.297 12 .297Z" />
+            </svg>
+          </Link>
+        </div>
+      </nav>
     </header>
-  )
+  );
 }
