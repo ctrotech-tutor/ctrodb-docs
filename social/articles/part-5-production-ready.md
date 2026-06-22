@@ -197,4 +197,4 @@ Use `adapter: "indexeddb"` for integration tests that verify persistence. The `f
 - **Set up change event subscriptions for debugging.** `db.on((event) => ...)` in development tells you exactly when and where data changes.
 - **Profile queries on real data sizes.** A full scan on 50 records is instant. A full scan on 50,000 records is not. Test with realistic volumes before shipping.
 
-_ctrodb is open source. Try the playground at https://ctrodb.vercel.app/playground. GitHub: https://github.com/ctrotech-tutor/ctrodb._
+_ctrodb is open source. Try the playground at https://ctrodb.vercel.app/playground. GitHub: https://github.com/ctrotech-tutor/ctrodb. npm: https://www.npmjs.com/package/ctrodb. Docs: https://ctrodb.vercel.app/docs/adapters/overview._

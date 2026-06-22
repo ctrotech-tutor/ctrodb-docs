@@ -1,7 +1,7 @@
 ---
 title: "Build a Notes App with ctrodb, Tailwind CSS, and Vanilla JavaScript"
 description: "A hands-on tutorial: build a fully functional notes app with search, pinning, and persistence — entirely in the browser, no backend required."
-tags: [javascript, tutorial, html, tailwind-css, database]
+tags: [javascript, tutorial, html, database]
 ---
 
 Let's build a notes app that runs entirely in the browser. Create, pin, search, and delete notes — all persisted to IndexedDB. No backend, no build step, no npm install.
@@ -414,4 +414,4 @@ Try the browser playground at https://ctrodb.vercel.app/playground.
 
 ---
 
-_ctrodb is open source. GitHub: https://github.com/ctrotech-tutor/ctrodb. Docs: https://ctrodb.vercel.app/docs._
+_ctrodb is open source. GitHub: https://github.com/ctrotech-tutor/ctrodb. Docs: https://ctrodb.vercel.app/docs/getting-started/quick-start._

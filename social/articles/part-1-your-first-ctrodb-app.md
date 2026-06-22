@@ -233,4 +233,4 @@ console.log(pinned[0].title) // "Buy groceries"
 
 In Part 2, you'll connect ctrodb to React with `useQuery`, `useMutation`, and reactive UIs that update automatically when data changes.
 
-_ctrodb is open source. Try the playground at https://ctrodb.vercel.app/playground. GitHub: https://github.com/ctrotech-tutor/ctrodb._
+_ctrodb is open source. Try the playground at https://ctrodb.vercel.app/playground. GitHub: https://github.com/ctrotech-tutor/ctrodb. npm: https://www.npmjs.com/package/ctrodb. Docs: https://ctrodb.vercel.app/docs/getting-started/quick-start._

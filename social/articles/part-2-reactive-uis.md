@@ -169,4 +169,4 @@ export function ClientTodoApp() {
 
 In Part 3, you'll add full-text search to your app with ctrodb's FTS plugin.
 
-_ctrodb is open source. Try the playground at https://ctrodb.vercel.app/playground. GitHub: https://github.com/ctrotech-tutor/ctrodb._
+_ctrodb is open source. Try the playground at https://ctrodb.vercel.app/playground. GitHub: https://github.com/ctrotech-tutor/ctrodb. npm: https://www.npmjs.com/package/ctrodb. Docs: https://ctrodb.vercel.app/docs/core-concepts/signal._

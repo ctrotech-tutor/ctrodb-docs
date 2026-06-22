@@ -142,4 +142,4 @@ Use basic search for small datasets or quick prototypes. Use the FTS plugin for 
 
 In Part 4, you'll model relationships between collections, set up validation rules, and design schemas for real-world apps.
 
-_ctrodb is open source. Try the playground at https://ctrodb.vercel.app/playground. GitHub: https://github.com/ctrotech-tutor/ctrodb._
+_ctrodb is open source. Try the playground at https://ctrodb.vercel.app/playground. GitHub: https://github.com/ctrotech-tutor/ctrodb. npm: https://www.npmjs.com/package/ctrodb. Docs: https://ctrodb.vercel.app/docs/plugins/full-text-search._

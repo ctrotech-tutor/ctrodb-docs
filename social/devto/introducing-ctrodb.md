@@ -1,7 +1,7 @@
 ---
 title: "ctrodb: A Client-Side Database for TypeScript — Zero Dependencies"
 description: "ctrodb is a reactive, schema-driven database that runs in the browser and Node.js. IndexedDB persistence, full-text search, React hooks, and zero runtime dependencies."
-tags: [typescript, javascript, database, opensource, webdev]
+tags: [typescript, javascript, database, opensource]
 ---
 
 I've been working on ctrodb — a client-side database for TypeScript that runs in the browser (IndexedDB) and Node.js (in-memory). Zero runtime dependencies. About 2,400 lines across 21 source files.
@@ -76,6 +76,6 @@ npm install ctrodb
 ```
 
 GitHub: https://github.com/ctrotech-tutor/ctrodb
-Docs: https://ctrodb.vercel.app/docs
+Docs: https://ctrodb.vercel.app/docs/getting-started/quick-start
 
 I'd love feedback on the API, the plugin system, or anything else.

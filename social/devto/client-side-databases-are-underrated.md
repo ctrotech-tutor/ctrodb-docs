@@ -1,7 +1,7 @@
 ---
 title: "Client-Side Databases Are Underrated"
 description: "Most frontend data doesn't need a server round-trip. Form drafts, cached API responses, search indexes, offline queues — your browser has a perfectly good database."
-tags: [javascript, webdev, architecture, database, performance]
+tags: [javascript, webdev, architecture, database]
 ---
 
 For the last five years, I've worked on web apps that follow the same pattern: build a backend, set up Postgres, wire up REST endpoints, fetch data on the client, cache it in React state or Redux.
@@ -70,4 +70,4 @@ Your UI becomes a view into a local database. No cache invalidation. No loading 
 
 ---
 
-If you're curious, ctrodb is open source. Try the playground at https://ctrodb.vercel.app/playground or check the docs at https://ctrodb.vercel.app/docs.
+If you're curious, ctrodb is open source. Try the playground at https://ctrodb.vercel.app/playground or check the docs at https://ctrodb.vercel.app/docs/getting-started/quick-start.

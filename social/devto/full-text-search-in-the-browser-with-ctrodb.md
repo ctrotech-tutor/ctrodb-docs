@@ -1,7 +1,7 @@
 ---
 title: "Full-Text Search in the Browser with ctrodb"
 description: "Build client-side search with an inverted index, stop word removal, and automatic indexing. No server, no API key, no network request."
-tags: [typescript, javascript, search, webdev, tutorial]
+tags: [typescript, javascript, search, tutorial]
 ---
 
 Search is one of those features that starts simple and gets complicated fast. A text input, a filter function, done. Then you add more data, and the filter gets slow. You want whole-word matching instead of substring. You need stop word removal. Suddenly you're looking at Elasticsearch.
@@ -127,4 +127,4 @@ Both use the same `query().search()` API. Start with basic search, add the plugi
 
 ---
 
-_ctrodb is open source. Try it in your browser at https://ctrodb.vercel.app/playground. GitHub: https://github.com/ctrotech-tutor/ctrodb._
+_ctrodb is open source. Try it in your browser at https://ctrodb.vercel.app/playground. GitHub: https://github.com/ctrotech-tutor/ctrodb. Docs: https://ctrodb.vercel.app/docs/plugins/full-text-search._

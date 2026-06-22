@@ -1,7 +1,7 @@
 ---
 title: "Build a Todo App with ctrodb — No Build Step Required"
 description: "A complete todo app with add, complete, delete, clear done, and reset — all persisted to IndexedDB. One HTML file, zero dependencies."
-tags: [javascript, tutorial, html, css, database]
+tags: [javascript, tutorial, html, database]
 ---
 
 Let's build a todo app that runs entirely in the browser. Add todos, mark them done, delete them, clear all completed, or reset everything — all persisted to IndexedDB. One HTML file, no build step, no npm install.
@@ -602,4 +602,4 @@ Everything is stored in IndexedDB via ctrodb. No server, no API, no database set
 
 ---
 
-_This is the official ctrodb CDN example. Try the browser playground at https://ctrodb.vercel.app/playground. GitHub: https://github.com/ctrotech-tutor/ctrodb. Docs: https://ctrodb.vercel.app/docs._
+_This is the official ctrodb CDN example. Try the browser playground at https://ctrodb.vercel.app/playground. GitHub: https://github.com/ctrotech-tutor/ctrodb. Docs: https://ctrodb.vercel.app/docs/examples/cdn-todo._

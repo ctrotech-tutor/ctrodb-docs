@@ -1,7 +1,7 @@
 ---
 title: "React State Management Without Redux or Zustand"
 description: "What if your database was the source of truth and your UI just reacted to changes? useQuery, useMutation, and why I stopped writing reducers."
-tags: [react, typescript, hooks, state-management, database]
+tags: [react, typescript, hooks, database]
 ---
 
 React state management has a well-worn path: pick a library (Redux, Zustand, Jotai, MobX), define your store shape, write actions and reducers, connect components, wire up side effects.
@@ -142,4 +142,4 @@ const unsubscribe = db.on((event) => {
 
 I used to reach for Redux or Zustand for every app that needed shared state. Now I reach for them less and less. If the data can live in IndexedDB, it lives in the database. The React hooks handle the rest.
 
-If you're curious, ctrodb is open source. Try the playground at https://ctrodb.vercel.app/playground or check the docs at https://ctrodb.vercel.app/docs.
+If you're curious, ctrodb is open source. Try the playground at https://ctrodb.vercel.app/playground or check the docs at https://ctrodb.vercel.app/docs/react/use-query.
