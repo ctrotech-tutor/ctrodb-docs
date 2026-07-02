@@ -3,7 +3,7 @@ import path from "path"
 import matter from "gray-matter"
 
 const ROOT = process.cwd()
-const DOCS_DIR = path.join(ROOT, "content/docs")
+const CONTENT_DIR = path.join(ROOT, "content")
 const BLOG_DIR = path.join(ROOT, "content/blog")
 const OUTPUT = path.join(ROOT, "public/search-index.json")
 
@@ -78,7 +78,7 @@ function nextId() {
   return `search-entry-${entryCounter++}`
 }
 
-function processDocFile(filePath, slugParts) {
+function processDocFile(filePath, slugParts, version) {
   const slug = slugParts.join("/")
   const source = fs.readFileSync(filePath, "utf8")
   const { data, content } = matter(source)
@@ -98,13 +98,14 @@ function processDocFile(filePath, slugParts) {
     entries.push({
       id: nextId(),
       hash,
-      slug: `/docs/${slug}`,
+      slug: `/docs/${version}/${slug}`,
       title,
       description,
       section: section.heading || description,
       content: plainText,
       type: "docs",
       category: slugParts[0] || "",
+      version,
     })
   }
 
@@ -112,13 +113,14 @@ function processDocFile(filePath, slugParts) {
     entries.push({
       id: nextId(),
       hash: "",
-      slug: `/docs/${slug}`,
+      slug: `/docs/${version}/${slug}`,
       title,
       description,
       section: description,
       content: title,
       type: "docs",
       category: slugParts[0] || "",
+      version,
     })
   }
 
@@ -180,21 +182,32 @@ function processBlogFile(filePath, slug) {
 function main() {
   const allEntries = []
   let docCount = 0
+  let versionCount = 0
 
-  // Process docs using meta.json for ordering
-  const metaPath = path.join(DOCS_DIR, "meta.json")
-  if (fs.existsSync(metaPath)) {
+  // Discover version directories (skip blog)
+  const versionDirs = fs.readdirSync(CONTENT_DIR).filter((name) => {
+    const dir = path.join(CONTENT_DIR, name)
+    return fs.statSync(dir).isDirectory() && name !== "blog"
+  })
+
+  for (const version of versionDirs) {
+    const docsDir = path.join(CONTENT_DIR, version, "docs")
+    const metaPath = path.join(docsDir, "meta.json")
+
+    if (!fs.existsSync(metaPath)) continue
+
     const meta = JSON.parse(fs.readFileSync(metaPath, "utf8"))
     const pages = meta.pages || []
-    docCount = pages.length
+    docCount += pages.length
+    versionCount++
 
     for (const pagePath of pages) {
-      const filePath = path.join(DOCS_DIR, `${pagePath}.mdx`)
+      const filePath = path.join(docsDir, `${pagePath}.mdx`)
       if (fs.existsSync(filePath)) {
-        const entries = processDocFile(filePath, pagePath.split("/"))
+        const entries = processDocFile(filePath, pagePath.split("/"), version)
         allEntries.push(...entries)
       } else {
-        console.warn(`[search] Missing doc: ${pagePath}`)
+        console.warn(`[search] Missing doc: ${version}/${pagePath}`)
       }
     }
   }
@@ -218,7 +231,7 @@ function main() {
   fs.writeFileSync(OUTPUT, json, "utf8")
 
   console.log(`[search] Index written: ${OUTPUT}`)
-  console.log(`[search] ${allEntries.length} entries from ${docCount} docs + ${blogCount} blog posts`)
+  console.log(`[search] ${allEntries.length} entries from ${docCount} docs (${versionCount} versions) + ${blogCount} blog posts`)
 }
 
 main()
