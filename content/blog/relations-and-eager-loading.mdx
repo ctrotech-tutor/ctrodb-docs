@@ -1,7 +1,7 @@
 ---
 title: "Relations and Eager Loading in ctrodb"
 description: "Model relationships between collections with has_many, belongs_to, has_one, and efficient eager loading."
-date: 2026-06-30
+date: "2026-06-30"
 author: ctrodb team
 tags:
   - relations
@@ -196,11 +196,11 @@ const newUser = await users.create({ name: "New User" })
 const posts = await newUser.posts.fetch()
 console.log(posts.length) // 0
 
-// Post with missing author → author is undefined
+// Post with missing author → author returns []
 await posts.create({ title: "Orphan", body: "...", userId: 999 })
 const orphan = await posts.query().where("title", "Orphan").first()
 const author = await orphan.author.fetch()
-console.log(author) // undefined
+console.log(author) // []
 ```
 
 ## Performance Considerations

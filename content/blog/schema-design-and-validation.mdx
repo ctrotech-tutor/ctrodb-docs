@@ -1,7 +1,7 @@
 ---
 title: "Schema Design and Validation in ctrodb"
 description: "Design robust schemas with field types, validation rules, default values, and indexes for your client-side database."
-date: 2026-06-27
+date: "2026-06-27"
 author: ctrodb team
 tags:
   - schema
@@ -98,16 +98,26 @@ fields: {
 
 ### Custom Validation Functions
 
-For custom logic, pass a function:
+For custom logic beyond the built-in validators, use the [validation plugin](/docs/plugins/validation)
+which supports `ValidationRule` objects with full field and collection context:
 
 ```typescript
-age: {
-  type: "number",
-  validate: (value) => value >= 0 && value <= 150,
-}
-```
+import { validationPlugin } from "ctrodb"
 
-The function receives the field value and must return `true` (valid) or `false` (invalid).
+const db = new Database({
+  plugins: [validationPlugin([
+    {
+      name: "ageRange",
+      validate(collection, field, value) {
+        if (field === "age" && (value < 0 || value > 150)) {
+          return "Age must be between 0 and 150"
+        }
+        return null
+      },
+    },
+  ])],
+})
+```
 
 ### Numeric Constraints
 
@@ -255,7 +265,7 @@ This is useful for prototyping, but for production applications, a well-defined 
 ctrodb's schema system provides:
 
 - Five field types with runtime type enforcement
-- Built-in validators (email, URL, regex, custom functions)
+- Built-in validators (email, URL, regex) plus custom rules via the validation plugin
 - Numeric and string constraints (min, max, maxLength)
 - Static and dynamic default values
 - Index definitions for performance and uniqueness

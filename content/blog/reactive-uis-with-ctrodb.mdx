@@ -1,7 +1,7 @@
 ---
 title: "Building Reactive UIs with ctrodb and React"
 description: "Use ctrodb's React hooks to build real-time, reactive user interfaces that automatically update when data changes."
-date: 2026-06-21
+date: "2026-06-21"
 author: ctrodb team
 tags:
   - react
@@ -53,7 +53,7 @@ import { useState } from "react"
 import { useQuery, useMutation } from "ctrodb/react"
 
 function TodoApp() {
-  const todos = useQuery("todos", (q) =>
+  const { data: todos } = useQuery("todos", (q) =>
     q.sort({ createdAt: "desc" })
   )
 
@@ -89,9 +89,10 @@ For accessing a single record, `useDoc` simplifies the pattern:
 import { useDoc } from "ctrodb/react"
 
 function TodoDetail({ id }: { id: string }) {
-  const todo = useDoc("todos", id)
+  const { data: todo, loading } = useDoc("todos", id)
 
-  if (!todo) return <p>Loading...</p>
+  if (loading) return <p>Loading...</p>
+  if (!todo) return <p>Not found</p>
 
   return (
     <div>
@@ -139,12 +140,12 @@ function AddTodo() {
 
 ```tsx
 // Active todos, newest first
-const activeTodos = useQuery("todos", (q) =>
+const { data: activeTodos } = useQuery("todos", (q) =>
   q.where("completed", false).sort({ createdAt: "desc" })
 )
 
 // Paginated results
-const page = useQuery("todos", (q) =>
+const { data: page } = useQuery("todos", (q) =>
   q.sort({ createdAt: "desc" }).limit(10).offset(page * 10)
 )
 ```
@@ -172,7 +173,7 @@ The third argument to `useQuery` lets you control when queries re-run:
 ```tsx
 function CategoryTodos({ category }: { category: string }) {
   // Re-runs the query when category changes
-  const todos = useQuery(
+  const { data: todos } = useQuery(
     "todos",
     (q) => q.where("category", category),
     [category]

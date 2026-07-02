@@ -1,0 +1,161 @@
+---
+title: Sync DevTools
+description: Debug, inspect, and manage the sync queue
+---
+
+The devtools module provides utilities for inspecting the sync queue,
+retrying failed changes, and monitoring sync events — useful during
+development and for building admin dashboards.
+
+## inspectSyncQueue
+
+Returns a full snapshot of every change in the sync store, grouped by
+status, plus aggregate statistics.
+
+```ts
+import { inspectSyncQueue } from "ctrodb"
+
+const snapshot = await inspectSyncQueue(db)
+
+console.log(snapshot.stats)
+// { total: 150, pending: 42, syncing: 0, committed: 100, failed: 8 }
+
+console.log(snapshot.failed)
+// [ SyncChangeRecord, ... ] — full records for debugging
+```
+
+### SyncQueueSnapshot
+
+```ts
+interface SyncQueueSnapshot {
+  pending: SyncChangeRecord[]
+  syncing: SyncChangeRecord[]
+  committed: SyncChangeRecord[]
+  failed: SyncChangeRecord[]
+  stats: SyncQueueStats
+}
+
+interface SyncQueueStats {
+  total: number
+  pending: number
+  syncing: number
+  committed: number
+  failed: number
+}
+```
+
+## getSyncStats
+
+Quick aggregate statistics without loading the full queue:
+
+```ts
+import { getSyncStats } from "ctrodb"
+
+const stats = await getSyncStats(db)
+// { total: 150, pending: 42, syncing: 0, committed: 100, failed: 8 }
+```
+
+## retryFailedSync
+
+Re-queues all failed changes by resetting their status to `pending` and
+returns the count of retried records:
+
+```ts
+import { retryFailedSync } from "ctrodb"
+
+const count = await retryFailedSync(db)
+console.log(`Retried ${count} failed changes`)
+```
+
+This is equivalent to what `SyncDevPanel`'s "Retry Failed" button does.
+
+## compactSyncQueue
+
+Removes superseded pending/failed changes — when multiple changes exist for the
+same record (collection + recordId), only the newest is kept. This reduces
+queue size by eliminating intermediate updates that don't need to be pushed.
+
+```ts
+import { compactSyncQueue } from "ctrodb"
+
+const removed = await compactSyncQueue(db)
+console.log(`Removed ${removed} redundant change records`)
+```
+
+## clearCommittedSync
+
+Removes all `committed` changes from the sync store. This is normally
+called automatically after a successful sync, but you can call it
+manually to reclaim space:
+
+```ts
+import { clearCommittedSync } from "ctrodb"
+
+const removed = await clearCommittedSync(db)
+console.log(`Removed ${removed} committed records`)
+```
+
+## createSyncEventLog
+
+Creates a live event log that captures sync events up to a maximum
+length:
+
+```ts
+import { createSyncEventLog } from "ctrodb"
+
+const log = createSyncEventLog(db, maxEvents = 50)
+
+// Later:
+console.log(log.events)
+// [ SyncEventLogEntry, ... ]
+
+// Stop listening:
+log.stop()
+```
+
+### SyncEventLogEntry
+
+```ts
+interface SyncEventLogEntry {
+  phase: SyncPhase
+  changes?: number
+  conflicts?: number
+  progress?: SyncProgress
+  error?: Error
+  timestamp: string
+}
+```
+
+## React hooks
+
+These utilities are also available as React hooks:
+
+- `useSyncQueue()` — returns `{ snapshot, loading, error, refresh }`
+- `useSyncStatus()` — polling status every 5s
+- `useSync(callback?)` — sync function + status
+
+See the [React hooks](/docs/react/use-sync-queue) page for details.
+
+## SyncDevPanel
+
+A ready-to-use debug component for React apps:
+
+```tsx
+import { SyncDevPanel } from "ctrodb/react"
+
+function DevTools() {
+  return (
+    <div style={{ position: "fixed", bottom: 0, right: 0, zIndex: 9999 }}>
+      <SyncDevPanel maxEvents={50} />
+    </div>
+  )
+}
+```
+
+Displays:
+- Sync queue stats (total, pending, syncing, committed, failed)
+- Failed count highlighted in red with a "Retry Failed" button
+- Recent sync event log color-coded by phase (blue = push/pull, yellow = conflict, green = complete, red = error)
+
+Returns `null` if the sync plugin is not registered, so it's safe to
+include in development builds without conditional rendering.

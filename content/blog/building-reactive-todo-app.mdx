@@ -1,7 +1,7 @@
 ---
 title: Building a Reactive Todo App with ctrodb and React
 description: Step-by-step guide to building a real-time todo app using useQuery and useMutation
-date: 2026-06-10
+date: "2026-06-10"
 author: ctrodb team
 category: React
 tags:
@@ -58,7 +58,7 @@ export function App() {
 import { useQuery, useMutation } from "ctrodb/react"
 
 function TodoList() {
-  const todos = useQuery("todos", (q) =>
+  const { data: todos } = useQuery("todos", (q) =>
     q.sort({ createdAt: "desc" })
   )
   const { update, delete: del } = useMutation("todos")
