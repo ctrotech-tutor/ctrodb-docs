@@ -1,0 +1,261 @@
+---
+title: Production Patterns
+description: Deploying and scaling the sync engine
+---
+
+## Recommended configuration
+
+```ts
+syncPlugin({
+  transport: new HttpTransport({
+    url: "https://api.example.com/sync",
+    headers: { Authorization: `Bearer ${token}` },
+    timeoutMs: 30000,
+  }),
+  autoSync: {
+    intervalMs: 30000,    // background sync every 30s
+    debounceMs: 1000,     // wait 1s after last local change
+  },
+  pushBatchSize: 50,      // 50 changes per push request
+  pullBatchSize: 100,     // 100 changes per pull request
+  strategy: "lww",        // last-writer-wins
+  retryMaxAttempts: 10,   // per-change retry limit
+})
+```
+
+## Offline-first architecture
+
+The sync engine is designed for offline-first applications:
+
+1. **All writes are local first** — the library writes to IndexedDB immediately,
+   sync happens asynchronously
+2. **Queue persists across sessions** — pending changes survive page reloads,
+   tab closures, and browser crashes (via `init()` crash recovery)
+3. **Background sync** — auto-sync interval keeps data fresh without user
+   interaction
+4. **Online recovery** — when the browser comes online, sync triggers
+   automatically
+
+```tsx
+function App() {
+  const { isConnected } = useSyncStatus()
+
+  return (
+    <div>
+      {!isConnected && <OfflineBanner />}
+      <TodoApp />
+    </div>
+  )
+}
+```
+
+## Cross-tab synchronization
+
+When using IndexedDB in a browser, multiple tabs share the same database.
+The sync engine coordinates across tabs via `BroadcastChannel`:
+
+1. Tab A writes a record → `onAfterCreate` fires → change is appended to
+   `_ctrodb_sync_changes` → `BroadcastChannel` message is sent
+2. Tab B receives the message → triggers a debounced sync → pulls any
+   new remote changes
+3. Tab B also picks up Tab A's local changes (since both tabs share the
+   same IndexedDB) — but the change tracker avoids double-pushing because
+   each change has a unique UUID
+
+**No coordination needed** — just ensure both tabs use the same IndexedDB
+database (same `name` in `Database` constructor).
+
+## Server-side considerations
+
+### Push endpoint
+
+Your server should:
+
+1. Accept `POST /push` with `{ changes: SyncChangeRecord[] }`
+2. Apply each change to the authoritative database
+3. Detect conflicts (same record modified since last sync) and return them
+4. Return `{ accepted, conflicts, errors }`
+
+```ts
+// Server pseudocode
+async function handlePush(req, res) {
+  const { changes } = req.body
+  const accepted = []
+  const conflicts = []
+  const errors = []
+
+  for (const change of changes) {
+    try {
+      const latest = await db.get(change.collection, change.recordId)
+      if (latest && latest.updatedAt > change.timestamp) {
+        // Conflict!
+        conflicts.push({
+          changeId: change.id,
+          recordId: change.recordId,
+          collection: change.collection,
+          local: change.data,
+          remote: latest,
+          localTimestamp: change.timestamp,
+          remoteTimestamp: latest.updatedAt,
+          fieldConflicts: findConflictingFields(change.data, latest),
+        })
+      } else {
+        await applyChange(change)
+        accepted.push({ id: change.id, serverTimestamp: new Date().toISOString() })
+      }
+    } catch (err) {
+      errors.push({ id: change.id, error: err.message })
+    }
+  }
+
+  res.json({ accepted, conflicts, errors })
+}
+```
+
+### Pull endpoint
+
+Your server should:
+
+1. Accept `POST /pull` or `GET /pull` with `cursor` parameter
+2. Return changes since that cursor (incremental, ordered by timestamp)
+3. Return an opaque `cursor` for the next page
+4. Set `hasMore: false` when the final page is reached
+
+```ts
+// Server pseudocode
+async function handlePull(req, res) {
+  const cursor = req.body?.cursor
+  const batchSize = req.body?.batchSize ?? 100
+
+  const changes = await getChangesSince(cursor, batchSize)
+  const nextCursor = changes.length === batchSize
+    ? changes[changes.length - 1].id
+    : null
+
+  res.json({
+    changes,
+    cursor: nextCursor,
+    hasMore: changes.length === batchSize,
+  })
+}
+```
+
+### Auth and headers
+
+Pass authentication via `headers` in the transport config:
+
+```ts
+new HttpTransport({
+  url: "https://api.example.com/sync",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "X-App-Version": "1.4.0",
+  },
+})
+```
+
+The sync engine does not manage auth — pass the token from your app's
+auth flow. If the token expires, transport calls will fail (401), and
+the engine will retry with backoff until the token is refreshed.
+
+## Error handling patterns
+
+### UI feedback
+
+```tsx
+function SyncStatus() {
+  const { isSyncing, lastError, pendingChanges, failedChanges } = useSyncStatus()
+
+  return (
+    <div>
+      {isSyncing && <span className="spinner" />}
+      {failedChanges > 0 && (
+        <span className="error">
+          {failedChanges} changes failed — {lastError}
+        </span>
+      )}
+      {pendingChanges > 0 && !isSyncing && (
+        <span>{pendingChanges} changes pending</span>
+      )}
+    </div>
+  )
+}
+```
+
+### Manual retry
+
+```tsx
+function RetryButton() {
+  const { sync, status } = useSync()
+
+  return (
+    <button
+      onClick={sync}
+      disabled={status.isSyncing}
+    >
+      {status.isSyncing ? "Syncing..." : "Retry Sync"}
+    </button>
+  )
+}
+```
+
+### Custom error reporting
+
+```ts
+db.onSync((event) => {
+  if (event.phase === "error" && event.error) {
+    reportError(event.error)
+  }
+})
+```
+
+## Monitoring
+
+### Sync event log
+
+Use `createSyncEventLog` in production for visibility:
+
+```ts
+import { createSyncEventLog } from "ctrodb"
+
+const log = createSyncEventLog(db, 200)
+
+// Periodically send to your analytics
+setInterval(() => {
+  const failedEvents = log.events.filter((e) => e.phase === "error")
+  if (failedEvents.length > 0) {
+    sendToAnalytics(failedEvents)
+  }
+}, 60000)
+```
+
+### Queue size monitoring
+
+Track the sync queue size to detect accumulation:
+
+```ts
+setInterval(async () => {
+  const stats = await getSyncStats(db)
+  if (stats.pending > 1000) {
+    console.warn(`Sync queue growing: ${stats.pending} pending`)
+  }
+  if (stats.failed > 50) {
+    console.error(`High failure count: ${stats.failed}`)
+  }
+}, 60000)
+```
+
+## Scaling
+
+- **Push batch size** — tune `pushBatchSize` based on your average record
+  size and server capacity. Smaller batches reduce per-request payload but
+  increase request count.
+- **Pull batch size** — larger `pullBatchSize` reduces round-trips but
+  increases per-response payload. Default 100 is good for most apps.
+- **Sync interval** — `intervalMs` of 30s balances freshness with battery
+  and bandwidth. For real-time apps, use `WsTransport` instead.
+- **Debounce** — `debounceMs` of 500-1000ms coalesces rapid local writes
+  into a single sync request.
+- **Response validation** — `validatePushResult` and `validatePullResult`
+  catch malformed server responses early. Consider disabling in production
+  for performance if your server contract is stable.

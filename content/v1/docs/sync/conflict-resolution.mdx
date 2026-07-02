@@ -1,0 +1,133 @@
+---
+title: Conflict Resolution
+description: Strategies for handling conflicting changes
+---
+
+When the same record is modified on two devices before either change reaches
+the server, a conflict occurs. `ConflictResolverEngine` determines which
+version wins.
+
+## When conflicts happen
+
+Conflicts are detected by the server during a **push** and returned in the
+push response:
+
+```ts
+interface SyncPushResult {
+  accepted: Array<{ id: string; serverTimestamp: string }>
+  conflicts: SyncConflict[]
+  errors: Array<{ id: string; error: string }>
+}
+```
+
+Each conflict contains both the local and remote versions:
+
+```ts
+interface SyncConflict {
+  changeId: string
+  recordId: ID
+  collection: string
+  local: Record<string, unknown> | null
+  remote: Record<string, unknown> | null
+  localTimestamp: string
+  remoteTimestamp: string
+  fieldConflicts: string[]
+}
+```
+
+## Resolution strategies
+
+Set via the `strategy` option in `SyncPluginConfig`:
+
+```ts
+syncPlugin({
+  transport: myTransport,
+  strategy: "lww", // default
+})
+```
+
+| Strategy | Behavior |
+|----------|----------|
+| `"lww"` (default) | **Last-writer-wins**. Compares timestamps. If timestamps match, server wins. |
+| `"client-wins"` | Local version always wins. Server is overwritten. |
+| `"server-wins"` | Remote version always wins. Local changes are discarded. |
+| `"custom"` | Your own logic via `conflictResolver` function. |
+
+### LWW (last-writer-wins)
+
+The default strategy. Compares `localTimestamp` and `remoteTimestamp`:
+
+- If local is newer → local wins
+- If remote is newer → remote wins
+- If timestamps are equal → remote wins (tiebreaker)
+- If one version doesn't exist (deleted) → the existing version wins
+
+### Client-wins
+
+Local changes always overwrite the server. Use this when the client is the
+authoritative source (e.g., a note-taking app where the client is always
+right).
+
+### Server-wins
+
+Remote changes always overwrite local data. Use this when the server is
+the single source of truth (e.g., collaborative editing with a central
+authority).
+
+## Custom resolver
+
+```ts
+import type { ConflictResolverFn } from "ctrodb"
+
+const customResolver: ConflictResolverFn = (conflict) => {
+  // Per-field merge: keep the newer value for each field
+  const merged = { ...conflict.remote, ...conflict.local }
+  return { resolution: "merged", merged }
+}
+
+syncPlugin({
+  transport: myTransport,
+  strategy: "custom",
+  conflictResolver: customResolver,
+})
+```
+
+### Resolution results
+
+```ts
+type ConflictResolution =
+  | { resolution: "local" }                      // keep local
+  | { resolution: "remote" }                     // accept remote
+  | { resolution: "merged"; merged: Record<string, unknown> | null }  // custom merge
+```
+
+- `"local"` — the sync engine marks the change as committed; server state is ignored
+- `"remote"` — the sync engine applies the remote data to the local store
+- `"merged"` — the sync engine writes your merged payload to the store
+
+For `"remote"` and `"merged"`, the engine handles all CRUD cases:
+
+| Local exists | Remote data | Action |
+|-------------|-------------|--------|
+| Yes | Non-null | Update local record |
+| No | Non-null | Create local record |
+| Yes | Null | Delete local record |
+| No | Null | No-op |
+
+## Conflict events
+
+Conflicts are reported via sync events. Listen with `db.onSync()`:
+
+```ts
+db.onSync((event) => {
+  if (event.phase === "conflict") {
+    console.log(`${event.conflicts.length} conflicts resolved`)
+  }
+})
+```
+
+## No conflict resolution on pull
+
+When pulling remote changes, the engine applies them directly without
+conflict resolution. Conflicts are only detected and resolved during the
+push phase, when both versions are available for comparison.

@@ -1,0 +1,67 @@
+---
+title: Errors
+description: Error classes
+---
+
+All errors extend `CtrodbError{:ts}`, which extends `Error{:js}`.
+
+```ts
+import {
+  CtrodbError,
+  ConnectionError,
+  CollectionNotFoundError,
+  RecordNotFoundError,
+  SchemaError,
+  ValidationError,
+  QueryError,
+} from "ctrodb"
+```
+
+## CtrodbError
+
+Base error class. Sets `this.name = "CtrodbError"{:js}`.
+
+## ConnectionError
+
+Thrown when operations are attempted before connecting.
+
+```ts
+new ConnectionError(dbName, reason?)
+// "Failed to connect to database "foo": reason"
+// or "Database "foo" is not connected. Call db.connect()..."
+```
+
+## SchemaError
+
+Thrown when schema configuration is invalid.
+
+```ts
+new SchemaError(message)
+// Invalid schema configuration.
+```
+
+## ValidationError
+
+Thrown when a record violates field validation rules.
+
+```ts
+new ValidationError(collection, field, message, value?)
+// 'Field "email" in collection "users": is required.'
+```
+
+Has `.field{:ts}`, `.collection{:ts}`, `.value{:ts}` properties.
+
+## Additional classes (not thrown by ctrodb)
+
+These error classes are exported for use in your own code or plugins:
+
+```ts
+new CollectionNotFoundError(name, availableCollections?)
+// 'Collection "users" not found. Available collections: todos, posts'
+
+new RecordNotFoundError(collection, id)
+// 'Record with id "42" not found in collection "todos".'
+
+new QueryError(message)
+// Query execution error.
+```

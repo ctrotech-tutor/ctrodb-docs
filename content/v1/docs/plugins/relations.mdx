@@ -1,0 +1,102 @@
+---
+title: Relations
+description: belongs_to, has_many, and has_one
+---
+
+Relations are defined in the schema and do not require a plugin.
+Lazy relation getters and eager loading are built into the core
+`Model{:ts}` and `Collection{:ts}` classes.
+
+## Schema definition
+
+```ts
+const db = new Database({
+  schema: {
+    version: 1,
+    collections: {
+      users: {
+        fields: { name: { type: "string" } },
+        relations: {
+          posts: {
+            type: "has_many",
+            collection: "posts",
+            foreignKey: "userId",
+          },
+        },
+      },
+      posts: {
+        fields: {
+          title: { type: "string" },
+          userId: { type: "number" },
+        },
+        relations: {
+          author: {
+            type: "belongs_to",
+            collection: "users",
+            foreignKey: "userId",
+          },
+        },
+      },
+    },
+  },
+})
+```
+
+## Relation types
+
+| Type | Source | Target | Meaning |
+|------|--------|--------|---------|
+| `belongs_to` | Post | User | Post has a `userId` pointing to User |
+| `has_many` | User | Post[] | User has many Posts via `userId` |
+| `has_one` | User | Profile | User has one Profile via `userId` |
+
+## Eager loading
+
+The `.with(){:ts}` method on collections eager-loads related records:
+
+```ts
+const users = await db.collection("users").with("posts").fetch()
+
+for (const user of users) {
+  console.log(user.name, user.posts.length)
+}
+```
+
+Chain multiple relations:
+
+```ts
+db.collection("posts").with("author", "comments")
+```
+
+## Lazy relation getters
+
+Without eager loading, models still have lazy getters attached automatically:
+
+```ts
+const post = await db.collection("posts").get(1)
+const author = await post.author.first()
+```
+
+Lazy getters return a `QueryBuilder{:ts}` pre-filtered on the foreign key.
+The `belongs_to{:ts}` getter filters `target_collection.where("id", "==", this.foreignKey){:ts}`.
+The `has_many{:ts}`/`has_one{:ts}` getter filters
+`target_collection.where("foreignKey", "==", this.id){:ts}`.
+
+## relationsPlugin
+
+The `relationsPlugin(){:ts}` exists as a placeholder for future features
+(cascade deletes, automatic foreign key validation, etc.).
+It is not required for relations to work.
+
+```ts
+import { relationsPlugin } from "ctrodb"
+
+const db = new Database({
+  plugins: [relationsPlugin()],
+})
+```
+
+## RelationsEngine
+
+`RelationsEngine{:ts}` is a class available for direct use,
+currently reserved for future functionality.

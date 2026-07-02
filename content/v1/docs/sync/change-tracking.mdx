@@ -1,0 +1,122 @@
+---
+title: Change Tracking
+description: How local changes are recorded for sync
+---
+
+The `ChangeTracker` records every local create, update, and delete into the
+`_ctrodb_sync_changes` store so the sync engine can push them to the server.
+
+## SYNC_STORE
+
+All change records live in a single internal store named `_ctrodb_sync_changes`.
+When using IndexedDB, this store has two indexes:
+
+- `status` — filter by `pending`, `syncing`, `committed`, `failed`
+- `timestamp` — sort and paginate changes chronologically
+
+These indexes are declared via `PluginStoreConfig` in the sync plugin and are
+automatically created during database migration.
+
+## Change record structure
+
+```ts
+interface SyncChangeRecord {
+  id: string                // UUID
+  collection: string        // collection name
+  recordId: ID              // the changed record's primary key
+  type: "create" | "update" | "delete"
+  data: Record<string, unknown> | null   // current snapshot
+  prevData: Record<string, unknown> | null // previous snapshot (update/delete)
+  timestamp: string         // ISO 8601
+  status: SyncChangeStatus  // pending | syncing | committed | failed
+  retries: number
+  errorMessage: string | null
+  createdAt: string
+  updatedAt: string
+}
+```
+
+## How changes are recorded
+
+The sync plugin hooks into `onAfterCreate`, `onAfterUpdate`, and
+`onAfterDelete` — every successful write to any collection automatically
+appends a change record.
+
+```ts
+// Internally, after every create:
+tracker.append("create", "todos", record.id, record)
+
+// After every update:
+tracker.append("update", "todos", id, newData, oldData)
+
+// After every delete:
+tracker.append("delete", "todos", id, null, oldData)
+```
+
+## ChangeTracker methods
+
+### init()
+
+```ts
+async init(): Promise<void>
+```
+
+Resets any orphaned `syncing` records back to `pending`. This handles
+crash recovery — if the page closed mid-sync, those changes will be
+re-attempted on the next sync cycle.
+
+### getPending()
+
+```ts
+async getPending(): Promise<SyncChangeRecord[]>
+```
+
+Returns all `pending` and `failed` records, sorted by timestamp (oldest first).
+Failed records are retried alongside pending ones.
+
+### markSyncing / markCommitted / markFailed
+
+```ts
+async markSyncing(ids: string[]): Promise<void>
+async markCommitted(id: string): Promise<void>
+async markFailed(id: string, error: string): Promise<void>
+```
+
+The sync engine transitions records through their lifecycle.
+`markSyncing` has a rollback mechanism — if any update in the batch fails,
+already-marked IDs are reverted to `pending` to prevent data loss.
+
+### countPending / countByStatus
+
+```ts
+async countPending(): Promise<number>
+async countByStatus(status: SyncChangeStatus): Promise<number>
+```
+
+Uses the `status` index for fast counting. `countPending` returns
+`pending + failed` — the total number of changes waiting to be pushed.
+
+### removeCommitted
+
+```ts
+async removeCommitted(): Promise<number>
+```
+
+Deletes all `committed` records. Called at the end of a successful sync
+cycle to prevent the store from growing unbounded.
+
+## Cross-tab broadcasting
+
+When a change is recorded, the tracker broadcasts it via `BroadcastChannel`
+(`"ctrodb:sync"` channel). Other tabs receive this and can trigger their
+own sync, keeping multiple windows in sync without polling.
+
+If `BroadcastChannel` is unavailable (Node.js, older browsers), the
+broadcast is silently skipped — cross-tab sync still works via the
+auto-sync interval.
+
+## Crash recovery
+
+If the browser crashes while changes are in `syncing` status, the
+`init()` method automatically resets them to `pending` on next page load.
+No data is lost.

@@ -1,0 +1,121 @@
+---
+title: Collection
+description: API reference for the Collection class
+---
+
+## Constructor
+
+Internal — collections are created by `Database.collection(){:ts}`.
+
+## Properties
+
+```ts
+collection.name: string
+```
+
+## Methods
+
+### create()
+
+```ts
+create(data: Omit<T, "id"> & { id?: ID }): Promise<Model<T> & T>
+```
+
+Creates a record. Generates a UUID if no `id` is provided. Applies defaults, validates schema, runs plugin hooks.
+
+### get()
+
+```ts
+get(id: ID): Promise<(Model<T> & T) | undefined>
+```
+
+Fetches a record by ID. Returns `undefined{:js}` if not found.
+
+### getAll()
+
+```ts
+getAll(): Promise<(Model<T> & T)[]>
+```
+
+Returns every record in the collection.
+
+### update()
+
+```ts
+update(id: ID, changes: Partial<T>): Promise<Model<T> & T>
+```
+
+Merges changes into an existing record. Throws if record not found.
+
+### delete()
+
+```ts
+delete(id: ID): Promise<void>
+```
+
+Deletes a record by ID. Returns normally even if the record does not exist.
+
+### deleteMany()
+
+```ts
+deleteMany(ids: ID[]): Promise<void>
+```
+
+Deletes multiple records. Silently skips missing IDs.
+
+```ts
+await notes.deleteMany([1, 2, 3])
+await notes.deleteMany(allIds) // remove all known ids
+```
+
+### put()
+
+```ts
+put(data: T & { id?: ID }): Promise<Model<T> & T>
+```
+
+Upsert — updates if `id` exists, creates otherwise.
+
+```ts
+// Create with specific id (upsert)
+await notes.put({ id: 42, title: "Hello", body: "..." })
+
+// Update if exists, create if not
+await notes.put({ id: 42, title: "Updated title" })
+```
+
+### count()
+
+```ts
+count(): Promise<number>
+```
+
+Returns the total number of records.
+
+### query()
+
+```ts
+query(): QueryBuilder<T>
+```
+
+Returns a new `QueryBuilder{:ts}` for this collection.
+
+### with()
+
+```ts
+with(...relations: string[]): QueryBuilder<T>
+```
+
+Returns a query builder that eager-loads the specified relations.
+
+```ts
+const users = await db.collection("users").with("posts").fetch()
+```
+
+### onChange()
+
+```ts
+onChange(callback: (event: ChangeEvent) => void): () => void
+```
+
+Subscribes to changes on this collection only. Returns an unsubscribe function.

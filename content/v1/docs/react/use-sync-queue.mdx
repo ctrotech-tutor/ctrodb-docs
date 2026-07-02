@@ -1,0 +1,49 @@
+---
+title: useSyncQueue
+description: Inspect the sync change queue
+---
+
+`useSyncQueue{:ts}` provides access to the sync queue for debugging and
+monitoring.
+
+## Signature
+
+```ts
+useSyncQueue(): SyncQueueResult
+
+interface SyncQueueResult {
+  snapshot: SyncQueueSnapshot | null
+  loading: boolean
+  error: Error | undefined
+  refresh: () => Promise<void>
+}
+```
+
+## Usage
+
+```tsx
+import { useSyncQueue } from "ctrodb/react"
+
+function QueueInspector() {
+  const { snapshot, loading, refresh } = useSyncQueue()
+
+  if (loading) return <div>Loading queue...</div>
+
+  return (
+    <div>
+      <button onClick={refresh}>Refresh</button>
+      {snapshot && (
+        <ul>
+          <li>Total: {snapshot.stats.total}</li>
+          <li>Pending: {snapshot.stats.pending}</li>
+          <li>Syncing: {snapshot.stats.syncing}</li>
+          <li>Committed: {snapshot.stats.committed}</li>
+          <li>Failed: {snapshot.stats.failed}</li>
+        </ul>
+      )}
+    </div>
+  )
+}
+```
+
+Auto-refreshes on each sync event.

@@ -1,0 +1,243 @@
+---
+title: Transports
+description: HTTP, WebSocket, and custom transports
+---
+
+A transport is responsible for sending local changes to and receiving
+changes from a remote server. ctrodb ships with two built-in transports
+and supports custom implementations.
+
+## Transport interface
+
+```ts
+interface SyncTransport {
+  readonly name: string
+  push(changes: SyncChangeRecord[], options?: PushOptions): Promise<SyncPushResult>
+  pull(options?: PullOptions): Promise<SyncPullResult>
+  connect?(): Promise<void>
+  disconnect?(): Promise<void>
+  isConnected?(): boolean
+}
+```
+
+Every transport must implement `push()` and `pull()`. The lifecycle
+methods `connect()` and `disconnect()` are optional — the sync engine
+calls them during `init()` and `destroy()` if they exist.
+
+## HttpTransport
+
+Sends sync data over HTTP. Best for stateless REST APIs or serverless
+environments.
+
+```ts
+import { HttpTransport } from "ctrodb"
+
+const transport = new HttpTransport({
+  url: "https://api.example.com/sync",
+  headers: {
+    Authorization: "Bearer your-token",
+  },
+  pullMethod: "POST",   // default: POST; can use GET
+  timeoutMs: 15000,      // request timeout (optional)
+  fetchOptions: {        // additional fetch() options
+    credentials: "include",
+  },
+})
+```
+
+### Push
+
+Sends a `POST /push` with JSON body `{ changes: [...] }`. Expects a
+`SyncPushResult` response.
+
+### Pull
+
+Sends to `/pull` — either `POST` (default) with JSON body or `GET` with
+query parameters. Accepts `cursor`, `collections`, and `batchSize` in
+either form. Expects a `SyncPullResult` response.
+
+### Rate limiting (429)
+
+If the server returns HTTP 429, the transport extracts the `Retry-After`
+header and attaches it to the error as `error.retryAfter` (milliseconds).
+The sync engine's backoff mechanism handles retry timing.
+
+### Connectivity check
+
+If `pingEndpoint` is configured, `connect()` sends a `HEAD` request to
+verify the server is reachable. Otherwise, `connect()` succeeds if the
+base URL responds.
+
+```ts
+new HttpTransport({
+  url: "https://api.example.com/sync",
+  pingEndpoint: "/health",
+})
+```
+
+### Timeouts
+
+`timeoutMs` applies to both push and pull requests. If combined with an
+external `AbortSignal`, the earlier of the two timeouts wins.
+
+## WsTransport
+
+Persistent WebSocket connection. Best for real-time applications where
+low-latency sync matters and the server supports push notifications.
+
+```ts
+import { WsTransport } from "ctrodb"
+
+const transport = new WsTransport({
+  url: "wss://api.example.com/sync",
+  headers: { token: "your-token" },      // sent as auth message after connect
+  reconnectIntervalMs: 3000,             // base interval between reconnects
+  maxReconnectAttempts: 10,              // 0 = infinite
+  requestTimeoutMs: 30000,               // per-request timeout
+  connectionTimeoutMs: 10000,            // connection establishment timeout
+})
+```
+
+### Request-response protocol
+
+Each push/pull call sends a JSON message with a unique `requestId` and
+waits for a matching response:
+
+```json
+// Client → Server
+{ "type": "push", "requestId": "req_1_1234", "payload": { "changes": [...] } }
+
+// Server → Client
+{ "type": "push_result", "requestId": "req_1_1234", "payload": { ... } }
+```
+
+Response validation is automatic — `validatePushResult` and
+`validatePullResult` ensure the server response is well-formed.
+
+### Server push (real-time)
+
+The server can send unsolicited changes to the client without the client
+polling:
+
+```json
+{ "type": "server_push", "payload": [ { "id": "...", "collection": "todos", ... } ] }
+```
+
+Handle with the `onServerPush` callback:
+
+```ts
+const unsub = wsTransport.onServerPush((changes) => {
+  // Apply incoming changes immediately
+})
+```
+
+### Reconnection
+
+On disconnect, the transport reconnects with exponential backoff + jitter:
+
+- Base delay: `reconnectIntervalMs` (default 3s)
+- Multiplier: 1.5× per attempt
+- Jitter: 75-125% of calculated delay
+- Max delay: 5 minutes
+- Max attempts: `maxReconnectAttempts` (default 10; 0 = infinite)
+
+### Connection timeout
+
+If the WebSocket handshake doesn't complete within `connectionTimeoutMs`
+(default 10s), the connection attempt is aborted and reconnection logic
+kicks in.
+
+## Custom transports
+
+Implement the `SyncTransport` interface for any backend:
+
+```ts
+import type { SyncTransport, SyncPushResult, SyncPullResult } from "ctrodb"
+
+class MyTransport implements SyncTransport {
+  readonly name = "my-custom"
+
+  async connect(): Promise<void> {
+    // Open connection
+  }
+
+  async disconnect(): Promise<void> {
+    // Close connection
+  }
+
+  isConnected(): boolean {
+    return true
+  }
+
+  async push(changes, options?): Promise<SyncPushResult> {
+    const response = await myCustomClient.push(changes)
+    return {
+      accepted: response.ok.map((id) => ({ id, serverTimestamp: response.ts })),
+      conflicts: response.conflicts ?? [],
+      errors: response.errors ?? [],
+    }
+  }
+
+  async pull(options?): Promise<SyncPullResult> {
+    const result = await myCustomClient.pull(options?.cursor)
+    return {
+      changes: result.items,
+      cursor: result.nextCursor,
+      hasMore: result.hasMore,
+    }
+  }
+}
+```
+
+### Validation helpers
+
+Use the built-in response validators in your server code or when
+processing responses from any transport:
+
+```ts
+import { validatePushResult, validatePullResult } from "ctrodb"
+
+// Throws SyncResponseValidationError if malformed
+const validated = validatePushResult(serverResponse)
+```
+
+## Server response contract
+
+Your sync server must implement these endpoints (for HTTP) or message
+handlers (for WebSocket):
+
+### Push response
+
+```ts
+interface SyncPushResult {
+  accepted: Array<{ id: string; serverTimestamp: string }>
+  conflicts: SyncConflict[]
+  errors: Array<{ id: string; error: string }>
+}
+```
+
+- `accepted` — changes that were applied server-side; includes the server's
+  timestamp for the conflict resolver
+- `conflicts` — changes that conflicted and need resolution
+- `errors` — changes that failed validation or other server-side errors
+
+### Pull response
+
+```ts
+interface SyncPullResult {
+  changes: Array<{
+    id: string
+    collection: string
+    recordId: ID
+    type: "create" | "update" | "delete"
+    data: Record<string, unknown> | null
+    timestamp: string
+  }>
+  cursor: string | null
+  hasMore: boolean
+}
+```
+
+- `changes` — remote changes to apply locally
+- `cursor` — opaque cursor for the next pull request (null when no more)
+- `hasMore` — whether more pages are available

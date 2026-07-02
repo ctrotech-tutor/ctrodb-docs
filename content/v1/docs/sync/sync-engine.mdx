@@ -1,0 +1,185 @@
+---
+title: Sync Engine
+description: The core sync lifecycle — push, pull, retry, and backoff
+---
+
+`SyncEngine` orchestrates the full sync lifecycle. It manages push/pull,
+auto-sync scheduling, exponential backoff, circuit breaking, online/offline
+detection, and cross-tab coordination.
+
+## Configuration
+
+```ts
+interface SyncPluginConfig {
+  transport: SyncTransport        // required — how to communicate with server
+  strategy?: ConflictStrategy     // "lww" (default), "client-wins", "server-wins", "custom"
+  conflictResolver?: ConflictResolverFn
+  autoSync?: boolean | {
+    intervalMs?: number           // default 30000 (30s)
+    debounceMs?: number           // default 500 (ms)
+  }
+  collections?: string[]          // restrict sync to specific collections
+  pushBatchSize?: number          // default 50
+  pullBatchSize?: number          // default 100
+  retryMaxAttempts?: number       // default 10 (per change)
+}
+```
+
+## The sync cycle
+
+When `db.sync()` or `engine.sync()` is called, the engine runs:
+
+```
+sync()
+  ├── push pending + failed changes (batch)
+  │     ├── mark batch as "syncing"
+  │     ├── transport.push(batch)
+  │     ├── mark accepted as "committed"
+  │     ├── resolve conflicts (apply strategy)
+  │     └── mark errors as "failed"
+  │
+  ├── pull remote changes (paginated)
+  │     ├── transport.pull({ cursor, batchSize })
+  │     ├── apply each change locally
+  │     └── update cursor for next pull
+  │
+  ├── clean up committed records
+  ├── update counts & metadata
+  └── emit "complete" event
+```
+
+### Push
+
+Pending and failed changes are sorted by timestamp (oldest first) and sent
+in batches of `pushBatchSize` (default 50). Before sending, each change
+in the batch is marked `syncing` with a rollback mechanism: if the
+transport call fails, all IDs in the batch are reverted to `pending`.
+
+### Pull
+
+After push, the engine pulls remote changes starting from the last known
+cursor. Pagination continues until the server returns `hasMore: false` or
+no changes. A safety limit of 1000 pages prevents infinite loops from
+misbehaving servers.
+
+### Cleanup
+
+Once push and pull succeed, committed records are removed from the sync
+store to keep the database lean.
+
+## Auto-sync
+
+When `autoSync` is enabled (recommended for most apps):
+
+- **Interval sync**: runs `sync()` every `intervalMs` (default 30s)
+- **Debounced sync**: local changes (from `onAfterCreate`/`onAfterUpdate`/`onAfterDelete`)
+  trigger a debounced sync after `debounceMs` (default 500ms) of inactivity
+- **Cross-tab sync**: `BroadcastChannel` messages from other tabs trigger
+  a debounced sync
+- **Online recovery**: when the browser comes back online, a sync is
+  triggered immediately
+
+## Exponential backoff
+
+After a failed sync, the engine backs off before retrying:
+
+| Attempt | Delay (approx) |
+|---------|---------------|
+| 1 | 1s + jitter |
+| 2 | 2s + jitter |
+| 3 | 4s + jitter |
+| ... | ... doubles |
+| Max | 5 minutes |
+
+Backoff uses jitter (75-125% of calculated delay) to prevent thundering
+herd problems. The delay resets to 1s after any successful sync.
+
+## Circuit breaker
+
+If 50 consecutive sync cycles fail, the engine stops automatic retries
+to avoid wasting resources. A manual `db.sync()` call or page reload
+resets the breaker.
+
+## Online / offline detection
+
+The engine listens to `window.online` and `window.offline` events:
+
+- When going offline, `isConnected` becomes `false` — auto-sync timers
+  still fire but transport calls will fail gracefully
+- When coming back online, a sync is triggered immediately if auto-sync
+  is enabled
+
+## Sync events
+
+```ts
+interface SyncEvent {
+  type: "sync"
+  phase: "push" | "pull" | "conflict" | "complete" | "error"
+  collection?: string
+  changes?: number
+  conflicts?: SyncConflict[]
+  error?: Error
+  progress?: SyncProgress
+  timestamp: string
+}
+```
+
+Listen via `db.onSync(callback)`:
+
+```ts
+db.onSync((event) => {
+  switch (event.phase) {
+    case "push":
+      console.log(`Pushing ${event.changes} changes...`)
+      break
+    case "conflict":
+      console.log(`${event.conflicts.length} conflicts to resolve`)
+      break
+    case "complete":
+      console.log(`Sync done: ${event.progress.pushed} pushed, ${event.progress.pulled} pulled`)
+      break
+    case "error":
+      console.error("Sync failed:", event.error)
+      break
+  }
+})
+```
+
+## Cancelling a sync
+
+Each sync cycle creates an `AbortController`. If a second sync is triggered
+while one is already running, the first is allowed to complete (new sync
+is ignored). To cancel mid-flight:
+
+```ts
+// The sync plugin does not expose the abort controller directly,
+// but transport-level timeouts (configured per transport) ensure
+// stalled requests don't hang forever.
+```
+
+## Metadata persistence
+
+The engine persists two values in the adapter's metadata store:
+
+| Key | Value |
+|-----|-------|
+| `sync:lastSyncAt` | ISO timestamp of the last successful sync |
+| `sync:lastPullCursor` | Server-provided cursor for incremental pulls |
+
+These survive page reloads, so the first pull after reload starts from
+where the last sync left off.
+
+## Status
+
+```ts
+interface SyncStatus {
+  isSyncing: boolean
+  isConnected: boolean
+  lastSyncAt: string | null
+  pendingChanges: number
+  failedChanges: number
+  lastError: string | null
+}
+```
+
+Access via `db.syncStatus` or the `useSyncStatus()` React hook.

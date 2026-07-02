@@ -1,0 +1,115 @@
+---
+title: Sync Overview
+description: Offline-first synchronization for ctrodb
+---
+
+The sync engine enables offline-first data synchronization between local
+IndexedDB/Memory storage and a remote server. It tracks every local change,
+pushes to the server, pulls remote changes, and resolves conflicts — all
+with automatic retry and exponential backoff.
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                     Browser                          │
+│  ┌──────────┐    ┌──────────────┐   ┌────────────┐  │
+│  │  App     │───▶│ ChangeTracker│──▶│  Transport  │  │
+│  │  writes  │    │ (SYNC_STORE) │   │ HTTP/WS     │──┼──▶ Server
+│  └──────────┘    └──────┬───────┘   └────────────┘  │
+│                         │                            │
+│                    ┌────▼───────┐                    │
+│                    │ SyncEngine │                    │
+│                    │ push/pull  │                    │
+│                    │ auto-sync  │                    │
+│                    │ backoff    │                    │
+│                    │ conflicts  │                    │
+│                    └────────────┘                    │
+└─────────────────────────────────────────────────────┘
+```
+
+## Key concepts
+
+| Concept | Description |
+|---------|-------------|
+| **ChangeTracker** | Records every create/update/delete to `_ctrodb_sync_changes` store |
+| **SyncEngine** | Orchestrates push → resolve conflicts → pull cycle |
+| **Transport** | Sends changes to / receives changes from a remote server |
+| **ConflictResolver** | Determines which version wins when local and remote disagree |
+| **SYNC_STORE** | Internal IndexedDB store (`_ctrodb_sync_changes`) with `status` and `timestamp` indexes |
+
+## Sync lifecycle
+
+A single sync cycle runs:
+
+1. **Push** — sends pending & failed local changes to the server
+2. **Resolve conflicts** — applies conflict strategy to any push conflicts
+3. **Pull** — fetches remote changes since last cursor
+4. **Cleanup** — removes committed records from the sync store
+
+## Sync states
+
+Each tracked change moves through these states:
+
+```
+pending ──▶ syncing ──▶ committed ──▶ (deleted)
+                 │                        │
+                 ▼                        ▼
+              failed ◀──── (retry)    (cleaned up on next sync)
+```
+
+- `pending` — waiting to be pushed
+- `syncing` — currently being transmitted
+- `committed` — successfully pushed (removed on next successful sync)
+- `failed` — push failed, will be retried
+
+## Getting started
+
+```ts
+import { Database, syncPlugin, HttpTransport } from "ctrodb"
+
+const db = new Database({
+  schema: {
+    version: 1,
+    collections: {
+      todos: {
+        fields: { title: { type: "string" }, done: { type: "boolean" } },
+      },
+    },
+  },
+  plugins: [
+    syncPlugin({
+      transport: new HttpTransport({
+        url: "https://api.example.com/sync",
+      }),
+      autoSync: true,
+    }),
+  ],
+})
+
+await db.connect()
+
+// One-shot sync
+await db.sync()
+
+// Listen for sync events
+db.onSync((event) => {
+  console.log(event.phase, event.progress)
+})
+
+// Current status
+console.log(db.syncStatus)
+
+// Queue counts
+const pending = await db.getPendingCount()
+const failed = await db.getFailedCount()
+```
+
+## Page structure
+
+- [Change Tracking](/docs/sync/change-tracking) — how local changes are recorded
+- [Sync Engine](/docs/sync/sync-engine) — lifecycle, auto-sync, backoff, circuit breaker
+- [Conflict Resolution](/docs/sync/conflict-resolution) — strategies and custom resolvers
+- [Transports](/docs/sync/transports) — HTTP, WebSocket, custom transports
+- [DevTools](/docs/sync/devtools) — inspect queue, retry failed, event log
+- [Production](/docs/sync/production) — deployment patterns and best practices

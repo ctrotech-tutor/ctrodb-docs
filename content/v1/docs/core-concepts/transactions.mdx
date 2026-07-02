@@ -1,0 +1,97 @@
+---
+title: Transactions
+description: Atomic operations with automatic rollback
+---
+
+Transactions group multiple operations into a single atomic unit. If any operation fails, all changes are rolled back.
+
+## Basic usage
+
+```ts
+const result = await db.transaction(async (ctx) => {
+  const todos = ctx.collection("todos")
+  await todos.create({ title: "Write docs" })
+  await todos.create({ title: "Ship v2" })
+  return "done"
+})
+```
+
+Both creates succeed together, or neither is applied.
+
+## TransactionContext API
+
+Inside a transaction callback, `ctx.collection(name){:ts}` returns a bound collection with raw CRUD methods:
+
+| Method | Signature | Description |
+|---|---|---|
+| `findAll{:ts}` | `() => Promise<T[]>{:ts}` | All records in the collection |
+| `findById{:ts}` | `(id: ID) => Promise<T \| undefined>{:ts}` | Single record by ID |
+| `create{:ts}` | `(data: Partial<T>) => Promise<T & { id: ID }>{:ts}` | Create a new record |
+| `update{:ts}` | `(id: ID, changes: Partial<T>) => Promise<T & { id: ID }>{:ts}` | Update an existing record |
+| `delete{:ts}` | `(id: ID) => Promise<void>{:ts}` | Delete a record |
+
+Note: `ctx.collection(){:ts}` returns raw adapter methods, not the `Collection{:ts}` API. Methods like `query(){:ts}`, `get(){:ts}`, `getAll(){:ts}`, `count(){:ts}`, `put(){:ts}`, and `deleteMany(){:ts}` are not available inside transactions.
+
+```ts
+const result = await db.transaction(async (ctx) => {
+  const adapter = ctx.collection("orders")
+  const order = await adapter.create({ item: "book", qty: 1 })
+  const found = await adapter.findById(order.id)
+  await adapter.update(order.id, { status: "confirmed" })
+  await adapter.delete(order.id)
+})
+```
+
+## Rollback on error
+
+If the callback throws, all changes are discarded:
+
+```ts
+await db.transaction(async (ctx) => {
+  const accounts = ctx.collection("accounts")
+  const from = await accounts.findById(senderId)
+  const to = await accounts.findById(recipientId)
+
+  if (!from || from.balance < amount) {
+    throw new Error("Insufficient funds") // rollback everything
+  }
+
+  await accounts.update(senderId, { balance: from.balance - amount })
+  await accounts.update(recipientId, { balance: to.balance + amount })
+})
+```
+
+## Returning values
+
+Transactions return whatever the callback returns:
+
+```ts
+const ids = await db.transaction(async (ctx) => {
+  const notes = ctx.collection("notes")
+  const a = await notes.create({ text: "First" })
+  const b = await notes.create({ text: "Second" })
+  return [a.id, b.id]
+})
+console.log(ids) // [1, 2]
+```
+
+## Adapter behavior
+
+- **IndexedDBAdapter**: uses native `IDBTransaction{:ts}`, calls `tx.abort(){:ts}` on error. `ctx.collection(name){:ts}` returns bound methods (`findAll(){:ts}`, `findById(){:ts}`, `create(){:ts}`, etc.) — no collection name parameter needed.
+- **MemoryAdapter**: takes a snapshot before the transaction runs, restores it on error. `ctx.collection(name){:ts}` returns the raw adapter, so you must pass the collection name to each method: `adapter.findAll("todos"){:ts}`, `adapter.create("todos", data){:ts}`.
+
+```ts
+// IndexedDB — bound methods
+await db.transaction(async (ctx) => {
+  const todos = ctx.collection("todos")
+  await todos.create({ title: "A" })
+})
+
+// Memory — raw adapter with collection name
+await db.transaction(async (ctx) => {
+  const adapter = ctx.collection("todos")
+  await adapter.create("todos", { title: "A" })
+})
+```
+
+No nesting support — calling `db.transaction(){:ts}` inside a transaction starts a new independent transaction.

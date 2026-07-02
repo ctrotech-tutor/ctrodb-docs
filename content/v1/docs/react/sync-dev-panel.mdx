@@ -1,0 +1,37 @@
+---
+title: SyncDevPanel
+description: Debug component for sync queue and events
+---
+
+`SyncDevPanel{:tsx}` is a ready-to-use debug component that displays the sync
+queue snapshot, stats, and recent sync events.
+
+## Signature
+
+```ts
+SyncDevPanel({ maxEvents?: number }): React.ReactElement | null
+```
+
+## Usage
+
+```tsx
+import { SyncDevPanel } from "ctrodb/react"
+
+function DevTools() {
+  return (
+    <div style={{ position: "fixed", bottom: 0, right: 0, zIndex: 9999 }}>
+      <SyncDevPanel maxEvents={50} />
+    </div>
+  )
+}
+```
+
+## Display
+
+- Sync queue stats: total, pending, syncing, committed, failed
+- "Retry Failed" button when failed changes exist
+- Recent sync event log with color-coded phases (error, conflict, complete)
+
+## Error handling
+
+Returns `null{:js}` if the sync plugin is not registered (avoids crashes).

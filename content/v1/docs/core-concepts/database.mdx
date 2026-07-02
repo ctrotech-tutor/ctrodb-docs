@@ -1,0 +1,119 @@
+---
+title: Database
+description: The main entry point for ctrodb
+---
+
+`Database{:ts}` is the top-level object. It manages the connection, schema, collections, and plugins.
+
+## Constructor
+
+```ts
+const db = new Database(config?: DatabaseConfig)
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `name{:ts}` | `string{:ts}` | `"ctrodb"{:txt}` | Database name |
+| `adapter{:ts}` | `"indexeddb" \| "memory" \| StorageAdapter{:ts}` | auto | Storage backend |
+| `schema{:ts}` | `SchemaConfig{:ts}` | — | Schema definition |
+| `plugins{:ts}` | `CtroDBPlugin[]{:ts}` | — | Plugin list |
+| `logLevel{:ts}` | `"debug" \| "info" \| "warn" \| "error" \| "silent"{:ts}` | — | Accepted, currently not implemented |
+
+## Connect / Disconnect
+
+```ts
+await db.connect()
+await db.disconnect()
+```
+
+`connect(){:ts}` initializes the adapter and triggers `onDatabaseInit{:ts}` on plugins.
+Call once before using collections. `disconnect(){:ts}` clears all collection caches.
+
+## Properties
+
+```ts
+db.isConnected   // boolean
+db.adapterName   // "memory" | "indexeddb"
+db.name          // string
+```
+
+## Collections
+
+```ts
+const todos = db.collection("todos")
+```
+
+Collections are lazily created — first access initializes a new `Collection<T>{:ts}`.
+
+## Transactions
+
+```ts
+const result = await db.transaction(async (ctx) => {
+  const todos = ctx.collection("todos")
+  return todos.findAll()
+})
+```
+
+If the callback throws, all changes are rolled back.
+The transaction context provides raw CRUD methods — `findAll(){:ts}`, `findById(){:ts}`, `create(){:ts}`, `update(){:ts}`, `delete(){:ts}` — not the full Collection API.
+
+See the [Transactions guide](/docs/core-concepts/transactions) for details.
+
+## Plugins
+
+```ts
+const syncPlugin = db.plugin("sync")
+```
+
+Returns the plugin instance registered with the given name, or `undefined{:js}`.
+
+## Sync
+
+These methods require the [sync plugin](/docs/sync/overview) to be registered.
+
+```ts
+await db.sync()
+```
+
+Triggers a full sync cycle (push local changes, pull remote changes).
+
+```ts
+const unsub = db.onSync((event) => {
+  console.log(event.phase, event.progress)
+})
+```
+
+Subscribes to sync lifecycle events. Returns an unsubscribe function.
+
+```ts
+db.syncStatus
+// { isSyncing: boolean, isConnected: boolean, lastSyncAt: string | null,
+//   pendingChanges: number, failedChanges: number, lastError: string | null }
+```
+
+Current sync status object. See [`SyncStatus`](/docs/sync/sync-engine#status) for details.
+
+```ts
+const pending = await db.getPendingCount()
+const failed = await db.getFailedCount()
+```
+
+Count of pending outbound changes and failed sync attempts.
+
+## Change events
+
+```ts
+const unsub = db.on((event) => {
+  console.log(event.type, event.collection, event.recordId)
+})
+
+unsub() // cleanup
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type{:ts}` | `"create" \| "update" \| "delete"{:ts}` | What happened |
+| `collection{:ts}` | `string{:ts}` | Collection name |
+| `recordId{:ts}` | `number \| string{:ts}` | Record ID |
+| `record{:ts}` | `unknown{:ts}` | New value (create/update) |
+| `oldRecord{:ts}` | `unknown{:ts}` | Previous value (update/delete) |

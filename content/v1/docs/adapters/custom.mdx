@@ -1,0 +1,403 @@
+---
+title: Custom Adapters
+description: Building custom storage backends for ctrodb
+---
+
+Any object that satisfies the `StorageAdapter` interface can serve as a ctrodb
+backend. This lets you persist data anywhere — REST APIs, localStorage, SQLite,
+WebSockets, or your own custom storage engine.
+
+## The StorageAdapter interface
+
+```ts
+import type { StorageAdapter, SchemaConfig, ID, QueryCondition, TransactionContext } from "ctrodb"
+
+interface StorageAdapter {
+  readonly name: string
+
+  // ── Lifecycle ──
+
+  /** Open the connection. Called once by Database.connect(). */
+  connect(name: string, schema: SchemaConfig | null): Promise<void>
+
+  /** Close the connection. Called once by Database.disconnect(). */
+  disconnect(): Promise<void>
+
+  /** Whether connect() has completed successfully. */
+  isConnected(): boolean
+
+  /** Read the persisted schema version. Return 0 if unset. */
+  getSchemaVersion(): Promise<number>
+
+  /** Persist the schema version after a successful migration. */
+  setSchemaVersion(version: number): Promise<void>
+
+  // ── CRUD ──
+
+  /** Insert a record. `data` includes the `id` field. Returns the stored record. */
+  create(collection: string, data: unknown): Promise<unknown>
+
+  /** Find a record by ID. Return `undefined` if not found. */
+  findById(collection: string, id: ID): Promise<unknown>
+
+  /** Return all records in the collection. Order is not guaranteed. */
+  findAll(collection: string): Promise<unknown[]>
+
+  /** Merge `changes` into an existing record. Throws if not found. */
+  update(collection: string, id: ID, changes: unknown): Promise<unknown>
+
+  /** Delete a single record by ID. No-op if not found. */
+  delete(collection: string, id: ID): Promise<void>
+
+  /** Delete multiple records by ID. No-op for missing IDs. */
+  deleteMany(collection: string, ids: ID[]): Promise<void>
+
+  // ── Indexed queries ──
+
+  /**
+   * Return records matching the index range and post-filter conditions.
+   * Used by the query planner for index_scan strategy.
+   *
+   * For in-memory adapters, do a full scan + JavaScript filter.
+   * For indexed backends, use the native index.
+   */
+  scanIndex(
+    collection: string,
+    indexName: string,
+    range: IDBKeyRange | undefined,
+    postFilters: QueryCondition[],
+  ): Promise<unknown[]>
+
+  // ── Transactions ──
+
+  /**
+   * Run `fn` inside a transaction. If `fn` throws, all side effects are
+   * rolled back. The `ctx` provides scoped CRUD via ctx.collection(name).
+   */
+  transaction<T>(fn: (ctx: TransactionContext) => Promise<T>): Promise<T>
+
+  // ── Metadata (key-value store for internal state) ──
+
+  /** Read a metadata value. Return `undefined` if not found. */
+  getMetadata(key: string): Promise<unknown>
+
+  /** Write a metadata value. */
+  setMetadata(key: string, value: unknown): Promise<void>
+}
+```
+
+## Minimal example: FileSystem adapter (Node.js)
+
+A practical example — persisting collections as JSON files:
+
+```ts
+import { readFile, writeFile, mkdir } from "node:fs/promises"
+import { join } from "node:path"
+import type { StorageAdapter, ID, QueryCondition, TransactionContext, SchemaConfig } from "ctrodb"
+
+interface StoreData {
+  records: Map<ID, Record<string, unknown>>
+}
+
+export class FileSystemAdapter implements StorageAdapter {
+  readonly name = "fs"
+  #dir: string = ""
+  #connected = false
+  #stores = new Map<string, StoreData>()
+  #meta = new Map<string, unknown>()
+
+  async connect(name: string, schema: SchemaConfig | null): Promise<void> {
+    this.#dir = join(process.cwd(), ".ctrodb", name)
+    await mkdir(this.#dir, { recursive: true })
+    this.#connected = true
+  }
+
+  async disconnect(): Promise<void> {
+    this.#stores.clear()
+    this.#meta.clear()
+    this.#connected = false
+  }
+
+  isConnected(): boolean {
+    return this.#connected
+  }
+
+  async #loadStore(collection: string): Promise<StoreData> {
+    let cached = this.#stores.get(collection)
+    if (cached) return cached
+    const path = join(this.#dir, `${collection}.json`)
+    try {
+      const raw = await readFile(path, "utf-8")
+      const parsed = JSON.parse(raw)
+      const records = new Map<ID, Record<string, unknown>>()
+      for (const record of parsed) {
+        records.set(record.id, record)
+      }
+      cached = { records }
+    } catch {
+      cached = { records: new Map() }
+    }
+    this.#stores.set(collection, cached)
+    return cached
+  }
+
+  async #saveStore(collection: string): Promise<void> {
+    const store = this.#stores.get(collection)
+    if (!store) return
+    const path = join(this.#dir, `${collection}.json`)
+    const data = [...store.records.values()]
+    await writeFile(path, JSON.stringify(data, null, 2))
+  }
+
+  async create(collection: string, data: unknown): Promise<unknown> {
+    const store = await this.#loadStore(collection)
+    const record = data as Record<string, unknown>
+    store.records.set(record.id as ID, { ...record })
+    await this.#saveStore(collection)
+    return { ...record }
+  }
+
+  async findById(collection: string, id: ID): Promise<unknown> {
+    const store = await this.#loadStore(collection)
+    const record = store.records.get(id)
+    return record ? { ...record } : undefined
+  }
+
+  async findAll(collection: string): Promise<unknown[]> {
+    const store = await this.#loadStore(collection)
+    return [...store.records.values()].map((r) => ({ ...r }))
+  }
+
+  async update(collection: string, id: ID, changes: unknown): Promise<unknown> {
+    const store = await this.#loadStore(collection)
+    const existing = store.records.get(id)
+    if (!existing) throw new Error(`Record "${id}" not found in "${collection}"`)
+    const updated = { ...existing, ...(changes as Record<string, unknown>) }
+    store.records.set(id, updated)
+    await this.#saveStore(collection)
+    return { ...updated }
+  }
+
+  async delete(collection: string, id: ID): Promise<void> {
+    const store = await this.#loadStore(collection)
+    store.records.delete(id)
+    await this.#saveStore(collection)
+  }
+
+  async deleteMany(collection: string, ids: ID[]): Promise<void> {
+    const store = await this.#loadStore(collection)
+    for (const id of ids) store.records.delete(id)
+    await this.#saveStore(collection)
+  }
+
+  async scanIndex(
+    collection: string,
+    indexName: string,
+    range: IDBKeyRange | undefined,
+    postFilters: QueryCondition[],
+  ): Promise<unknown[]> {
+    const all = await this.findAll(collection)
+    let results = all as Record<string, unknown>[]
+
+    if (range) {
+      results = results.filter((r) => {
+        const val = r[indexName] as number
+        if (range.lower !== undefined) {
+          if (range.lowerOpen ? val <= (range.lower as number) : val < (range.lower as number))
+            return false
+        }
+        if (range.upper !== undefined) {
+          if (range.upperOpen ? val >= (range.upper as number) : val > (range.upper as number))
+            return false
+        }
+        return true
+      })
+    }
+
+    for (const cond of postFilters) {
+      if (cond.type === "search") continue
+      results = results.filter((r) => {
+        const val = r[cond.field] as number | string
+        switch (cond.op) {
+          case "==": return val === cond.value
+          case "!=": return val !== cond.value
+          case ">":  return (val as number) > (cond.value as number)
+          case ">=": return (val as number) >= (cond.value as number)
+          case "<":  return (val as number) < (cond.value as number)
+          case "<=": return (val as number) <= (cond.value as number)
+          default:   return true
+        }
+      })
+    }
+
+    return results
+  }
+
+  async transaction<T>(fn: (ctx: TransactionContext) => Promise<T>): Promise<T> {
+    // Snapshot current state
+    const snapshot = new Map<string, Map<ID, Record<string, unknown>>>()
+    for (const [name, store] of this.#stores) {
+      snapshot.set(name, new Map(store.records))
+    }
+
+    try {
+      return await fn(new FsTxContext(this))
+    } catch (error) {
+      // Rollback
+      for (const [name, records] of snapshot) {
+        const store = this.#stores.get(name)
+        if (store) store.records = new Map(records)
+      }
+      throw error
+    }
+  }
+
+  async getMetadata(key: string): Promise<unknown> {
+    return this.#meta.get(key)
+  }
+
+  async setMetadata(key: string, value: unknown): Promise<void> {
+    this.#meta.set(key, value)
+  }
+
+  async getSchemaVersion(): Promise<number> {
+    return (this.#meta.get("schemaVersion") as number) || 0
+  }
+
+  async setSchemaVersion(version: number): Promise<void> {
+    this.#meta.set("schemaVersion", version)
+  }
+}
+
+class FsTxContext implements TransactionContext {
+  #adapter: FileSystemAdapter
+  constructor(adapter: FileSystemAdapter) {
+    this.#adapter = adapter
+  }
+  collection(_name: string): unknown {
+    // Return the raw adapter — caller must pass collection name
+    return this.#adapter
+  }
+}
+```
+
+Usage:
+
+```ts
+const db = new Database({
+  adapter: new FileSystemAdapter(),
+})
+await db.connect()
+const todos = db.collection("todos")
+await todos.create({ title: "Persist me" })
+// Data is written to .ctrodb/my-app/todos.json
+```
+
+## Implementing TransactionContext
+
+The `TransactionContext` interface has a single method:
+
+```ts
+interface TransactionContext {
+  collection(name: string): unknown
+}
+```
+
+There are two valid patterns for what `collection()` returns:
+
+### Pattern A: Bound collection proxy (like IndexedDBAdapter)
+
+Return an object with scoped CRUD methods — no collection name needed:
+
+```ts
+collection(name: string) {
+  return {
+    create: (data) => this.#createInTx(name, data),
+    findById: (id) => this.#findInTx(name, id),
+    findAll: () => this.#findAllInTx(name),
+    update: (id, changes) => this.#updateInTx(name, id, changes),
+    delete: (id) => this.#deleteInTx(name, id),
+  }
+}
+```
+
+### Pattern B: Raw adapter (like MemoryAdapter)
+
+Return the adapter itself — caller passes collection name to each method:
+
+```ts
+collection(_name: string) {
+  return this.#adapter
+}
+// Usage:
+const adapter = ctx.collection("todos") as MyAdapter
+await adapter.create("todos", { id: "1" })
+```
+
+Choose Pattern A for a more ergonomic API, Pattern B for simplicity.
+
+## Implementing scanIndex
+
+For non-indexed backends, implement `scanIndex` as a full collection scan with
+JavaScript filters — the built-in `MemoryAdapter` implementation is a good
+reference:
+
+1. Load all records via `findAll()`
+2. Apply range filter (check `range.lower`, `range.upper`, `lowerOpen`, `upperOpen`
+   against `record[indexName]`)
+3. Apply each post-filter condition in sequence (`==`, `!=`, `>`, `>=`, `<`, `<=`)
+4. Skip conditions with `type: "search"` (handled by the FTS plugin)
+5. Return the filtered array
+
+For indexed backends (SQLite, PostgreSQL, etc.), translate the
+`IDBKeyRange` + `QueryCondition[]` into native WHERE clauses for maximum
+performance.
+
+## SchemaConfig handling
+
+The `connect()` method receives a `SchemaConfig | null`:
+
+```ts
+interface SchemaConfig {
+  version: number
+  collections: Record<string, CollectionSchema>
+  pluginStoreNames?: (string | PluginStoreConfig)[]
+}
+```
+
+At minimum, your adapter should:
+
+- Pre-create any stores/namespaces for entries in `schema.collections`
+- Optionally handle `pluginStoreNames` if plugins are used
+- Persist `schema.version` via `setSchemaVersion()` (the framework does this
+  automatically after `connect()` returns)
+
+## Registration
+
+Pass your custom adapter to the `Database` constructor:
+
+```ts
+const db = new Database({
+  adapter: new FileSystemAdapter(),
+  schema: {
+    version: 1,
+    collections: {
+      todos: {
+        fields: { title: { type: "string" } },
+      },
+    },
+  },
+})
+await db.connect()
+```
+
+Or register it in the `createAdapter` factory:
+
+```ts
+import { createAdapter } from "ctrodb"
+// Your custom adapter must be passed directly — createAdapter only
+// handles the built-in "memory" and "indexeddb" types.
+const db = new Database({
+  adapter: new MyAdapter(),
+})
+```

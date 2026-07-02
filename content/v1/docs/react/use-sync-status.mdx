@@ -1,0 +1,55 @@
+---
+title: useSyncStatus
+description: Track sync connection and queue state
+---
+
+`useSyncStatus{:ts}` polls sync status every 5 seconds and subscribes to
+sync events for real-time updates.
+
+## Signature
+
+```ts
+useSyncStatus(): SyncStatusResult
+
+interface SyncStatusResult {
+  isSyncing: boolean
+  isConnected: boolean
+  lastSyncAt: string | null
+  pendingChanges: number
+  failedChanges: number
+  lastError: string | null
+}
+```
+
+## Usage
+
+```tsx
+import { useSyncStatus } from "ctrodb/react"
+
+function SyncIndicator() {
+  const {
+    isSyncing,
+    isConnected,
+    lastSyncAt,
+    pendingChanges,
+    failedChanges,
+    lastError,
+  } = useSyncStatus()
+
+  if (!isConnected) return <span>Offline</span>
+  if (isSyncing) return <span>Syncing...</span>
+
+  return (
+    <div>
+      {pendingChanges > 0 && <span>{pendingChanges} pending</span>}
+      {failedChanges > 0 && <span style={{ color: "red" }}>{failedChanges} failed</span>}
+      {lastSyncAt && <span>Last sync: {new Date(lastSyncAt).toLocaleTimeString()}</span>}
+    </div>
+  )
+}
+```
+
+## Error handling
+
+If the sync plugin is not registered, `useSyncStatus` returns all-zero/default
+values without throwing.

@@ -1,0 +1,48 @@
+---
+title: useSync
+description: Trigger sync and monitor status
+---
+
+`useSync{:ts}` provides a `sync()` function and the current sync status.
+
+## Signature
+
+```ts
+useSync(callback?: (event: SyncEvent) => void): {
+  sync: () => Promise<void>
+  status: SyncStatusResult
+}
+```
+
+## Usage
+
+```tsx
+import { useSync } from "ctrodb/react"
+
+function SyncButton() {
+  const { sync, status } = useSync()
+
+  return (
+    <div>
+      <button onClick={sync} disabled={status.isSyncing}>
+        {status.isSyncing ? "Syncing..." : "Sync Now"}
+      </button>
+      {status.lastError && <p className="error">{status.lastError}</p>}
+    </div>
+  )
+}
+```
+
+## With event callback
+
+```tsx
+function SyncingWidget() {
+  const { sync, status } = useSync((event) => {
+    console.log("Sync event:", event.phase)
+  })
+
+  return <button onClick={sync}>Sync</button>
+}
+```
+
+Returns the same `SyncStatusResult{:ts}` as `useSyncStatus{:ts}`.

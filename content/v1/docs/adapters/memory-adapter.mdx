@@ -1,0 +1,149 @@
+---
+title: MemoryAdapter
+description: In-memory storage for Node.js, testing, and prototyping
+---
+
+`MemoryAdapter` stores all data in JavaScript `Map` objects. Data is lost when
+the process exits or the page is reloaded. It is the default adapter in
+environments without IndexedDB (Node.js, Deno, CI, SSR).
+
+## How it works
+
+- Each collection is a `Map<ID, Record>` — one map per collection name
+- A separate `Map<string, unknown>` holds metadata (schema version, etc.)
+- On `connect()`, collection maps are pre-created for every entry in
+  `schema.collections` — plugin stores are created lazily on first write
+- IDs are **not auto-generated** — the adapter requires an `id` field on every
+  record. The `Collection` layer always provides one (via `crypto.randomUUID()`)
+- Records are stored as-is but `findAll()` and `findById()` return shallow
+  copies to prevent external mutation
+
+## When to use
+
+- Unit and integration tests
+- Server-side rendering (SSR) and server components
+- CLI tools and scripts
+- Demos and prototyping
+- Node.js environments without IndexedDB
+- CI pipelines (no browser required)
+
+## Explicit instantiation
+
+```ts
+import { MemoryAdapter, Database } from "ctrodb"
+
+const db = new Database({
+  adapter: new MemoryAdapter(),
+  // or: adapter: "memory",
+  schema: {
+    version: 1,
+    collections: {
+      todos: {
+        fields: { title: { type: "string" } },
+      },
+    },
+  },
+})
+
+await db.connect()
+```
+
+## ID handling
+
+The `MemoryAdapter.create()` method requires an `id` field. If you call it
+directly without one, it throws:
+
+```ts
+// Direct adapter call — requires id
+await adapter.create("todos", { id: "abc-123", title: "Hello" })
+
+// Without id — throws Error
+await adapter.create("todos", { title: "Hello" })
+// → Error: id is required. Use collection.create({ id: '...', ... })
+//   or let the Collection layer generate one.
+```
+
+When using `Collection.create()`, the Collection layer generates a UUID via
+`crypto.randomUUID()` and passes it to the adapter — you never need to worry
+about IDs in normal usage.
+
+## scanIndex
+
+The MemoryAdapter does a full collection scan and applies range and post-filter
+conditions in JavaScript:
+
+```ts
+async scanIndex(collection, indexName, range, postFilters) {
+  const all = await this.findAll(collection)
+  let results = all
+
+  // Range filter (IDBKeyRange)
+  if (range) {
+    results = results.filter((r) => {
+      const val = r[indexName]
+      if (range.lower !== undefined) {
+        if (range.lowerOpen ? val <= range.lower : val < range.lower)
+          return false
+      }
+      if (range.upper !== undefined) {
+        if (range.upperOpen ? val >= range.upper : val > range.upper)
+          return false
+      }
+      return true
+    })
+  }
+
+  // Post-filter conditions
+  for (const cond of postFilters) {
+    results = results.filter((r) => {
+      const val = r[cond.field]
+      switch (cond.op) {
+        case "==": return val === cond.value
+        case "!=": return val !== cond.value
+        case ">":  return (val as number) > (cond.value as number)
+        case ">=": return (val as number) >= (cond.value as number)
+        case "<":  return (val as number) < (cond.value as number)
+        case "<=": return (val as number) <= (cond.value as number)
+        default:   return true
+      }
+    })
+  }
+
+  return results
+}
+```
+
+This works correctly for all query types but is O(n) — every record in the
+collection is checked. For small datasets (testing, prototyping) this is fine.
+
+## Transaction behavior
+
+Transactions use a **snapshot-and-restore** mechanism:
+
+1. On `transaction(fn)` start, the adapter deep-clones all collection maps
+2. The callback runs against the live data
+3. If the callback succeeds, the snapshot is discarded
+4. If the callback throws, the snapshot is restored — all changes are rolled
+   back
+5. Nested transactions are **not supported**
+
+```ts
+await db.transaction(async (ctx) => {
+  const adapter = ctx.collection("todos") as MemoryAdapter
+  await adapter.create("todos", { id: "1", title: "A" })
+  throw new Error("rollback")
+})
+// The create is rolled back — collection "todos" is unchanged
+```
+
+The transaction context returns the raw adapter — you must pass the collection
+name to every method call. This differs from the IndexedDBAdapter, which
+returns a bound collection proxy.
+
+## Limitations
+
+- Data does not persist across restarts
+- No concurrent access protection (single-process only)
+- O(n) scanIndex — not suitable for large datasets
+- Auto-created collections (via `#ensureCollection`) do not apply schema
+  defaults or validation — use the `Collection` layer for that
