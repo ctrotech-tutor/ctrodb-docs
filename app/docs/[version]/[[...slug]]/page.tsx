@@ -1,5 +1,7 @@
 import { getDoc, getAllDocSlugs } from "@/lib/content"
-import { notFound } from "next/navigation"
+import { getSidebar } from "@/lib/sidebar"
+import { isValidVersion, getDefaultVersion, getVersionLabel } from "@/lib/versions"
+import { notFound, permanentRedirect } from "next/navigation"
 import Link from "next/link"
 import { TableOfContents } from "@/components/toc"
 import { TocPopover } from "@/components/toc-popover"
@@ -11,7 +13,7 @@ import { DocFeedback } from "@/components/feedback"
 import { CodeCopyProvider } from "@/components/code-copy"
 import { ChevronRight, ExternalLink } from "lucide-react"
 
-function getBreadcrumbs(slug: string[]): { label: string; href: string }[] {
+function getBreadcrumbs(version: string, slug: string[]): { label: string; href: string }[] {
   const groups: Record<string, string> = {
     "getting-started": "Getting Started",
     "core-concepts": "Core Concepts",
@@ -23,19 +25,30 @@ function getBreadcrumbs(slug: string[]): { label: string; href: string }[] {
     migration: "Migration",
   }
 
-  const crumbs: { label: string; href: string }[] = [{ label: "Docs", href: "/docs" }]
+  const crumbs: { label: string; href: string }[] = [
+    { label: "Docs", href: `/docs/${version}` },
+  ]
 
   if (slug.length > 0 && groups[slug[0]]) {
-    crumbs.push({ label: groups[slug[0]], href: `/docs/${slug[0]}` })
+    crumbs.push({ label: groups[slug[0]], href: `/docs/${version}/${slug[0]}` })
   }
 
   return crumbs
 }
 
-export default async function DocPage(props: { params: Promise<{ slug?: string[] }> }) {
-  const { slug } = await props.params
-  const slugPath = (slug || ["getting-started", "installation"]).join("/")
-  const result = await getDoc(slug || ["getting-started", "installation"])
+export default async function DocPage(props: {
+  params: Promise<{ version: string; slug?: string[] }>
+}) {
+  const { version, slug } = await props.params
+
+  if (!isValidVersion(version)) {
+    const defaultVer = getDefaultVersion()
+    const target = slug ? `/docs/${defaultVer}/${slug.join("/")}` : `/docs/${defaultVer}`
+    permanentRedirect(target)
+  }
+
+  const docSlug = slug || ["getting-started", "installation"]
+  const result = await getDoc(version, docSlug)
   if (!result) notFound()
 
   const { content, frontmatter, toc, prev, next, lastUpdated, raw } = result
@@ -56,7 +69,7 @@ export default async function DocPage(props: { params: Promise<{ slug?: string[]
           {/* Breadcrumbs */}
           <nav aria-label="Breadcrumb" className="mb-2">
             <ol className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-              {getBreadcrumbs(slug || ["getting-started", "installation"]).map((crumb, i, arr) => (
+              {getBreadcrumbs(version, docSlug).map((crumb, i, arr) => (
                 <li key={crumb.href} className="inline-flex items-center gap-1.5">
                   {i > 0 && <ChevronRight className="size-3.5" />}
                   {i < arr.length - 1 ? (
@@ -73,8 +86,8 @@ export default async function DocPage(props: { params: Promise<{ slug?: string[]
 
           <div className="flex flex-row flex-wrap gap-2 items-center border-b pb-6">
             <CopyMarkdown raw={raw} />
-            <OpenDropdown slug={slugPath} />
-            <DocShare slug={slugPath} title={frontmatter.title} description={frontmatter.description} />
+            <OpenDropdown version={version} slug={docSlug.join("/")} />
+            <DocShare version={version} slug={docSlug.join("/")} title={frontmatter.title} description={frontmatter.description} />
           </div>
 
           <CodeCopyProvider>
@@ -84,9 +97,9 @@ export default async function DocPage(props: { params: Promise<{ slug?: string[]
           </CodeCopyProvider>
 
           <div className="flex items-center justify-between border-y py-3">
-            <DocFeedback slug={slugPath} title={frontmatter.title} />
+            <DocFeedback slug={`${version}/${docSlug.join("/")}`} title={frontmatter.title} />
             <a
-              href={`https://github.com/ctrotech-tutor/ctrodb-docs/blob/main/content/docs/${slugPath}.mdx`}
+              href={`https://github.com/ctrotech-tutor/ctrodb-docs/blob/main/content/${version}/docs/${docSlug.join("/")}.mdx`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -110,14 +123,20 @@ export default async function DocPage(props: { params: Promise<{ slug?: string[]
 }
 
 export function generateStaticParams() {
-  return getAllDocSlugs().map((slug) => ({
+  const version = "v1"
+  const slugs = getAllDocSlugs(version)
+  return slugs.map((slug) => ({
+    version,
     slug,
   }))
 }
 
-export async function generateMetadata(props: { params: Promise<{ slug?: string[] }> }) {
-  const { slug } = await props.params
-  const result = await getDoc(slug || ["getting-started", "installation"])
+export async function generateMetadata(props: {
+  params: Promise<{ version: string; slug?: string[] }>
+}) {
+  const { version, slug } = await props.params
+  const docSlug = slug || ["getting-started", "installation"]
+  const result = await getDoc(version, docSlug)
   if (!result) return undefined
 
   const { title, description } = result.frontmatter
