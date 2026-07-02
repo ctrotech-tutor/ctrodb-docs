@@ -11,6 +11,7 @@ export type SearchDoc = {
   tags?: string[]
   date?: string
   author?: string
+  version?: string
 }
 
 export type SearchResult = SearchDoc & {

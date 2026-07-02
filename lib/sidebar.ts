@@ -1,6 +1,7 @@
 import fs from "fs"
 import path from "path"
 import matter from "gray-matter"
+import { isValidVersion, getDefaultVersion } from "./versions"
 
 export type SidebarItem = {
   title: string
@@ -28,8 +29,14 @@ function getIcon(key: string): string | undefined {
   return groupIcons[key]
 }
 
-export function getSidebar(): SidebarGroup[] {
-  const metaPath = path.join(process.cwd(), "content/docs/meta.json")
+function resolveVersion(v: string): string {
+  if (isValidVersion(v)) return v
+  return getDefaultVersion()
+}
+
+export function getSidebar(version?: string): SidebarGroup[] {
+  const ver = resolveVersion(version || getDefaultVersion())
+  const metaPath = path.join(process.cwd(), "content", ver, "docs/meta.json")
   const meta = JSON.parse(fs.readFileSync(metaPath, "utf8"))
 
   const groupMap = new Map<string, SidebarItem[]>()
@@ -37,7 +44,7 @@ export function getSidebar(): SidebarGroup[] {
   for (const pagePath of meta.pages as string[]) {
     const parts = pagePath.split("/")
     const groupKey = parts.length > 1 ? parts[0] : "__root__"
-    const filePath = path.join(process.cwd(), `content/docs/${pagePath}.mdx`)
+    const filePath = path.join(process.cwd(), "content", ver, `docs/${pagePath}.mdx`)
     const source = fs.readFileSync(filePath, "utf8")
     const { data } = matter(source)
     const title = (data.title as string) || parts[parts.length - 1]
@@ -45,7 +52,7 @@ export function getSidebar(): SidebarGroup[] {
     if (!groupMap.has(groupKey)) {
       groupMap.set(groupKey, [])
     }
-    groupMap.get(groupKey)!.push({ title, slug: pagePath })
+    groupMap.get(groupKey)!.push({ title, slug: `${ver}/${pagePath}` })
   }
 
   const displayNames: Record<string, string> = {

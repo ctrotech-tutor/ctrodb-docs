@@ -4,6 +4,7 @@ import { execSync } from "child_process"
 import matter from "gray-matter"
 import { compile, type MDXResult } from "./mdx"
 import { estimateReadingTime } from "./reading-time"
+import { isValidVersion, getDefaultVersion } from "./versions"
 
 export type DocFrontmatter = {
   title: string
@@ -44,8 +45,8 @@ function getGitDate(filePath: string): string {
   })
 }
 
-function getAdjacentPages(slug: string[]) {
-  const metaPath = path.join(process.cwd(), "content/docs/meta.json")
+function getAdjacentPages(version: string, slug: string[]) {
+  const metaPath = path.join(process.cwd(), "content", version, "docs/meta.json")
   if (!fs.existsSync(metaPath)) return { prev: null, next: null }
 
   const meta = JSON.parse(fs.readFileSync(metaPath, "utf8"))
@@ -59,7 +60,7 @@ function getAdjacentPages(slug: string[]) {
   const nextSlug = idx < pages.length - 1 ? pages[idx + 1] : null
 
   const getTitle = (s: string) => {
-    const fp = path.join(process.cwd(), `content/docs/${s}.mdx`)
+    const fp = path.join(process.cwd(), "content", version, `docs/${s}.mdx`)
     try {
       const src = fs.readFileSync(fp, "utf8")
       const { data } = matter(src)
@@ -70,13 +71,19 @@ function getAdjacentPages(slug: string[]) {
   }
 
   return {
-    prev: prevSlug ? { title: getTitle(prevSlug), slug: prevSlug } : null,
-    next: nextSlug ? { title: getTitle(nextSlug), slug: nextSlug } : null,
+    prev: prevSlug ? { title: getTitle(prevSlug), slug: `${version}/${prevSlug}` } : null,
+    next: nextSlug ? { title: getTitle(nextSlug), slug: `${version}/${nextSlug}` } : null,
   }
 }
 
-export async function getDoc(slug: string[]): Promise<DocResult | null> {
-  const filePath = path.join(process.cwd(), "content/docs", ...slug) + ".mdx"
+function resolveVersion(v: string): string {
+  if (isValidVersion(v)) return v
+  return getDefaultVersion()
+}
+
+export async function getDoc(version: string, slug: string[]): Promise<DocResult | null> {
+  const ver = resolveVersion(version)
+  const filePath = path.join(process.cwd(), "content", ver, "docs", ...slug) + ".mdx"
 
   if (!fs.existsSync(filePath)) {
     return null
@@ -86,7 +93,7 @@ export async function getDoc(slug: string[]): Promise<DocResult | null> {
   const { content: body, data } = matter(source)
   const { content, toc } = await compile(body)
 
-  const { prev, next } = getAdjacentPages(slug)
+  const { prev, next } = getAdjacentPages(ver, slug)
   const lastUpdated = getGitDate(filePath)
 
   return {
@@ -103,8 +110,9 @@ export async function getDoc(slug: string[]): Promise<DocResult | null> {
   }
 }
 
-export function getAllDocSlugs(): string[][] {
-  const metaPath = path.join(process.cwd(), "content/docs/meta.json")
+export function getAllDocSlugs(version?: string): string[][] {
+  const ver = resolveVersion(version || getDefaultVersion())
+  const metaPath = path.join(process.cwd(), "content", ver, "docs/meta.json")
   if (!fs.existsSync(metaPath)) return []
 
   const meta = JSON.parse(fs.readFileSync(metaPath, "utf8"))
@@ -117,6 +125,7 @@ export type BlogFrontmatter = {
   date: string
   author: string
   tags: string[]
+  category: string
 }
 
 export type BlogResult = MDXResult & {
@@ -145,6 +154,7 @@ export async function getBlogPost(slug: string): Promise<BlogResult | null> {
       date: (data.date as string) || "",
       author: (data.author as string) || "ctrodb team",
       tags: (data.tags as string[]) || [],
+      category: (data.category as string) || "article",
     },
   }
 }

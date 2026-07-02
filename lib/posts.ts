@@ -50,3 +50,21 @@ export function getAllCategories(posts: PostMeta[]): PostCategory[] {
   const cats = new Set(posts.map((p) => p.category))
   return Array.from(cats).sort()
 }
+
+export function getRecentPosts(count = 5): PostMeta[] {
+  return getAllPosts().slice(0, count)
+}
+
+export function getPostsByCategory(category: string): PostMeta[] {
+  return getAllPosts().filter((p) => p.category === category)
+}
+
+export function getAdjacentPosts(slug: string): { prev: PostMeta | null; next: PostMeta | null } {
+  const posts = getAllPosts()
+  const idx = posts.findIndex((p) => p.slug === slug)
+  if (idx === -1) return { prev: null, next: null }
+  return {
+    prev: idx > 0 ? posts[idx - 1] : null,
+    next: idx < posts.length - 1 ? posts[idx + 1] : null,
+  }
+}
