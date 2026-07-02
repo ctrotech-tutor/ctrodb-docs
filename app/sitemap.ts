@@ -1,12 +1,14 @@
 import type { MetadataRoute } from "next"
 import { getAllDocSlugs } from "@/lib/content"
 import { getAllPosts } from "@/lib/posts"
+import { getDefaultVersion } from "@/lib/versions"
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl = "https://ctrodb.vercel.app"
+  const defaultVer = getDefaultVersion()
 
   const docsSlugs = getAllDocSlugs()
-  const docsPages = docsSlugs.map((slug) => `/docs/${slug.join("/")}`)
+  const docsPages = docsSlugs.map((slug) => `/docs/${defaultVer}/${slug.join("/")}`)
 
   const blogPosts = getAllPosts()
   const blogPages = blogPosts.map((post) => `/blog/${post.slug}`)

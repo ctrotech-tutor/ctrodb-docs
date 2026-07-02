@@ -6,6 +6,7 @@ import { useState } from "react"
 import { Search, PanelLeft } from "lucide-react"
 import { Sheet, SheetTrigger, SheetContent, SheetTitle, SheetClose } from "@/components/ui/sheet"
 import { MobileSidebar } from "@/components/mobile-sidebar"
+import { VersionSelectorNav } from "@/components/version-selector-nav"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useSearch } from "@/lib/search-context"
 import type { SidebarGroup } from "@/lib/sidebar"
@@ -33,6 +34,10 @@ export function Subnav({ groups }: { groups: SidebarGroup[] }) {
           priority
         />
       </Link>
+
+      <div className="ms-4">
+        <VersionSelectorNav />
+      </div>
 
       <div className="flex-1" />
 

@@ -1,28 +1,53 @@
 "use client"
 
-import { useState } from "react"
-import { Link2, Check } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Link, Share2, Check } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
-export function BlogShare({ slug }: { slug: string }) {
+export function BlogShare({ slug, title, description }: { slug: string; title: string; description?: string }) {
   const [copied, setCopied] = useState(false)
+  const [canShare, setCanShare] = useState(false)
+
+  useEffect(() => {
+    setCanShare("share" in navigator)
+  }, [])
+
+  const url = `https://ctrodb.vercel.app/blog/${slug}`
 
   async function handleCopy() {
-    const url = `${window.location.origin}/blog/${slug}`
-    await navigator.clipboard.writeText(url)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch { /* ignore */ }
+  }
+
+  async function handleShare() {
+    if (canShare) {
+      try {
+        await navigator.share({
+          title: `${title} | ctrodb`,
+          text: description || title,
+          url,
+        })
+      } catch { /* user cancelled or error */ }
+    } else {
+      handleCopy()
+    }
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={handleCopy}
-        className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-accent"
-      >
-        {copied ? <Check className="size-3.5" /> : <Link2 className="size-3.5" />}
-        {copied ? "Copied!" : "Copy link"}
-      </button>
+    <div className="flex gap-1">
+      <Button variant="secondary" size="default" onClick={handleCopy} className="gap-1.5" aria-label="Copy link">
+        {copied ? <Check className="size-3.5 text-emerald-500" /> : <Link className="size-3.5" />}
+        <span className="hidden sm:inline">{copied ? "Copied link" : "Copy link"}</span>
+      </Button>
+      {canShare && (
+        <Button variant="secondary" size="default" onClick={handleShare} className="gap-1.5" aria-label="Share">
+          <Share2 className="size-3.5" />
+          <span className="hidden sm:inline">Share</span>
+        </Button>
+      )}
     </div>
   )
 }

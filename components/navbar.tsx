@@ -7,6 +7,7 @@ import { Search } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MobileNav } from "@/components/mobile-nav";
+import { VersionSelector } from "@/components/version-selector";
 import { useSearch } from "@/lib/search-context";
 
 const navLinks = [
@@ -31,7 +32,7 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-xl">
       <nav className="mx-auto flex h-14 max-w-(--fd-layout-width) items-center px-4">
-        {/* LEFT */}
+
         {/* LEFT */}
         <div className="flex min-w-0 items-center">
           {/* Brand */}
@@ -126,6 +127,16 @@ export function Navbar() {
               );
             })}
           </ul>
+
+          {/* Version selector */}
+          <div className="ml-4 inline-flex">
+            <VersionSelector />
+          </div>
+          {/* {pathname.startsWith("/docs") && (
+            <div className="ml-4 hidden md:inline-flex">
+              <VersionSelector />
+            </div>
+          )} */}
         </div>
 
         {/* RIGHT */}

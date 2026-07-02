@@ -1,219 +1,43 @@
 import { getBlogPost } from "@/lib/content"
 import { getAllPosts } from "@/lib/posts"
+import { getAdjacentPosts } from "@/lib/posts"
 import { notFound } from "next/navigation"
+import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ArrowRight } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Navbar } from "@/components/navbar"
-import { Footer } from "@/components/footer"
-import { BlogTOC } from "@/components/blog-toc"
+import { TableOfContents } from "@/components/toc"
 import { TocPopover } from "@/components/toc-popover"
 import { BlogShare } from "@/components/blog-share"
+import { Navbar } from "@/components/navbar"
+import { Footer } from "@/components/footer"
+import { ChevronLeft, ChevronRight, ArrowUpRight, Clock } from "lucide-react"
 
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2)
-}
-
-export default async function BlogPostPage(props: { params: Promise<{ slug: string }> }) {
-  const { slug } = await props.params
-  const result = await getBlogPost(slug)
-  if (!result) notFound()
-
-  const { content, frontmatter, toc, readingTime } = result
-
-  const posts = getAllPosts()
-  const currentIndex = posts.findIndex((p) => p.slug === slug)
-  const prevPost = currentIndex > 0 ? posts[currentIndex - 1] : null
-  const nextPost = currentIndex < posts.length - 1 ? posts[currentIndex + 1] : null
-
-  // Related posts: same category, excluding current
-  const related = posts
-    .filter((p) => p.slug !== slug && p.category === frontmatter.tags[0])
-    .slice(0, 3)
-  // Fallback to most recent if not enough related
-  const relatedPosts = related.length >= 2
-    ? related
-    : posts.filter((p) => p.slug !== slug).slice(0, 3)
-
-  return (
-    <>
-      <Navbar />
-      <TocPopover items={toc} />
-      <main className="mx-auto max-w-6xl px-6 py-16">
-        <div className="mx-auto flex max-w-[90rem] justify-center gap-12 items-start">
-          {/* Main content */}
-          <article className="min-w-0 max-w-3xl flex-1">
-            {/* Back link */}
-            <Link
-              href="/blog"
-              className="mb-10 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <ArrowLeft className="size-4" />
-              Back to blog
-            </Link>
-
-            {/* Header */}
-            <header className="mb-10">
-              <div className="mb-4 flex flex-wrap gap-2">
-                {frontmatter.tags.map((tag: string) => (
-                  <Badge key={tag} variant="secondary">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-              <h1 className="text-4xl font-bold tracking-tight">{frontmatter.title}</h1>
-              <p className="mt-2 text-lg text-muted-foreground">{frontmatter.description}</p>
-
-              {/* Author + meta row */}
-              <div className="mt-6 flex items-center gap-3 border-b pb-6">
-                <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary shrink-0">
-                  {getInitials(frontmatter.author)}
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium">{frontmatter.author}</div>
-                  <div className="text-xs text-muted-foreground">
-                    <time dateTime={frontmatter.date}>
-                      {new Date(frontmatter.date).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </time>
-                    {" · "}
-                    {readingTime} min read
-                  </div>
-                </div>
-                <BlogShare slug={slug} />
-              </div>
-            </header>
-
-            {/* Content */}
-            <div className="prose prose-zinc max-w-none dark:prose-invert
-              prose-headings:scroll-mt-24
-              prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-              prose-code:rounded-md prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:text-sm
-              prose-pre:border prose-pre:border-border prose-pre:bg-muted
-              prose-img:rounded-xl
-              prose-blockquote:border-primary
-              prose-strong:text-foreground
-              prose-hr:border-border
-            ">
-              {content}
-            </div>
-
-            {/* Related posts */}
-            {relatedPosts.length > 0 && (
-              <>
-                <Separator className="my-12" />
-                <section>
-                  <h2 className="mb-6 text-xl font-semibold">Related posts</h2>
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    {relatedPosts.map((p) => (
-                      <Link
-                        key={p.slug}
-                        href={`/blog/${p.slug}`}
-                        className="group rounded-lg border p-4 transition-colors hover:bg-muted"
-                      >
-                        <Badge variant="secondary" className="mb-2 text-[10px]">
-                          {p.category}
-                        </Badge>
-                        <h3 className="text-sm font-medium group-hover:text-primary transition-colors">
-                          {p.title}
-                        </h3>
-                        <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                          {p.description}
-                        </p>
-                        <time className="mt-2 block text-[10px] text-muted-foreground">
-                          {new Date(p.date).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </time>
-                      </Link>
-                    ))}
-                  </div>
-                </section>
-              </>
-            )}
-
-            {/* Prev / Next */}
-            {(prevPost || nextPost) && (
-              <>
-                <Separator className="my-12" />
-                <nav className="flex items-center justify-between gap-4">
-                  {prevPost ? (
-                    <Link
-                      href={`/blog/${prevPost.slug}`}
-                      className="group flex-1 rounded-lg border p-4 transition-colors hover:bg-muted"
-                    >
-                      <span className="text-xs text-muted-foreground">Previous</span>
-                      <p className="mt-1 text-sm font-medium group-hover:text-primary">
-                        {prevPost.title}
-                      </p>
-                    </Link>
-                  ) : (
-                    <div className="flex-1" />
-                  )}
-                  {nextPost ? (
-                    <Link
-                      href={`/blog/${nextPost.slug}`}
-                      className="group flex-1 rounded-lg border p-4 text-right transition-colors hover:bg-muted"
-                    >
-                      <span className="text-xs text-muted-foreground">Next</span>
-                      <p className="mt-1 flex items-center justify-end gap-1 text-sm font-medium group-hover:text-primary">
-                        {nextPost.title}
-                        <ArrowRight className="size-3.5" />
-                      </p>
-                    </Link>
-                  ) : (
-                    <div className="flex-1" />
-                  )}
-                </nav>
-              </>
-            )}
-          </article>
-
-          {/* Desktop TOC */}
-          <BlogTOC items={toc} />
-        </div>
-      </main>
-      <Footer />
-    </>
-  )
-}
+const baseUrl = "https://ctrodb.vercel.app"
 
 export function generateStaticParams() {
   return getAllPosts().map((post) => ({ slug: post.slug }))
 }
 
-export async function generateMetadata(props: { params: Promise<{ slug: string }> }) {
+export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await props.params
   const result = await getBlogPost(slug)
-  if (!result) return undefined
-  const { title, description, date, author } = result.frontmatter
+  if (!result) return {}
+
+  const { title, description, date, author, tags } = result.frontmatter
+  const url = `${baseUrl}/blog/${slug}`
+
   return {
     title: `${title} | ctrodb`,
     description,
+    alternates: { canonical: url },
     openGraph: {
       title: `${title} | ctrodb`,
       description,
+      url,
       type: "article",
       publishedTime: date,
       authors: [author],
-      images: [
-        {
-          url: `/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description || "")}`,
-          width: 1200,
-          height: 630,
-        },
-      ],
+      tags,
+      siteName: "ctrodb",
     },
     twitter: {
       card: "summary_large_image",
@@ -221,4 +45,183 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
       description,
     },
   }
+}
+
+export default async function BlogPostPage(props: { params: Promise<{ slug: string }> }) {
+  const { slug } = await props.params
+  const posts = getAllPosts()
+  const meta = posts.find((p) => p.slug === slug)
+  if (!meta) notFound()
+
+  const result = await getBlogPost(slug)
+  if (!result) notFound()
+
+  const { content, frontmatter, toc, readingTime } = result
+  const { prev, next } = getAdjacentPosts(slug)
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: frontmatter.title,
+    description: frontmatter.description,
+    datePublished: frontmatter.date,
+    author: {
+      "@type": "Person",
+      name: frontmatter.author,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Ctrotech",
+    },
+    url: `${baseUrl}/blog/${slug}`,
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": `${baseUrl}/blog/${slug}`,
+    },
+  }
+
+  return (
+    <>
+      <Navbar />
+      <TocPopover items={toc} activeId="" />
+      <div className="mx-auto flex max-w-[90rem]">
+        <article
+          id="nd-page"
+          className="flex flex-col w-full max-w-[900px] mx-auto px-4 py-6 gap-4 md:px-6 md:pt-8 xl:px-8 xl:pt-14"
+        >
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
+
+          {/* Header */}
+          <header>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Link
+                href={frontmatter.category ? `/blog?category=${frontmatter.category}` : "/blog"}
+                className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+              >
+                {frontmatter.category}
+              </Link>
+              <span aria-hidden="true">·</span>
+              <time dateTime={frontmatter.date}>{frontmatter.date}</time>
+              <span aria-hidden="true">·</span>
+              <span className="inline-flex items-center gap-1">
+                <Clock className="size-3.5" />
+                {readingTime} min read
+              </span>
+            </div>
+            <h1 className="mt-3 text-3xl font-bold tracking-tight">{frontmatter.title}</h1>
+            {frontmatter.description && (
+              <p className="mt-2 text-lg text-muted-foreground">{frontmatter.description}</p>
+            )}
+            <div className="mt-4 flex items-center gap-4 text-sm text-muted-foreground">
+              <span>{frontmatter.author}</span>
+              {frontmatter.tags.length > 0 && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {frontmatter.tags.map((tag: string) => (
+                      <span
+                        key={tag}
+                        className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </header>
+
+          {/* Share + RSS */}
+          <div className="flex flex-row flex-wrap gap-2 items-center border-b pb-6">
+            <BlogShare slug={slug} title={frontmatter.title} description={frontmatter.description} />
+            <a
+              href="/blog/rss.xml"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowUpRight className="size-3.5" />
+              RSS Feed
+            </a>
+          </div>
+
+          {/* Content */}
+          <div className="prose prose-zinc max-w-none dark:prose-invert
+            prose-headings:scroll-mt-24
+            prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+            prose-code:rounded-md prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:text-sm
+            prose-pre:border prose-pre:border-border prose-pre:bg-muted
+            prose-img:rounded-xl
+            prose-blockquote:border-primary
+            prose-strong:text-foreground
+            prose-hr:border-border
+          ">
+            {content}
+          </div>
+
+          {/* Category back link */}
+          <div className="border-t pt-6 text-sm text-muted-foreground">
+            <Link
+              href={frontmatter.category ? `/blog?category=${frontmatter.category}` : "/blog"}
+              className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
+            >
+              <ChevronLeft className="size-4" />
+              More {frontmatter.category} posts
+            </Link>
+          </div>
+
+          {/* Prev / Next */}
+          {(prev || next) && (
+            <nav
+              aria-label="Blog post navigation"
+              className="grid grid-cols-2 gap-4 border-t pt-6"
+            >
+              {prev ? (
+                <Link
+                  href={`/blog/${prev.slug}`}
+                  className="group flex flex-col gap-1 rounded-lg border p-4 transition-colors hover:bg-accent"
+                >
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <ChevronLeft className="size-3" />
+                    Previous post
+                  </span>
+                  <span className="text-sm font-medium group-hover:text-primary transition-colors line-clamp-2">
+                    {prev.title}
+                  </span>
+                </Link>
+              ) : (
+                <div />
+              )}
+              {next ? (
+                <Link
+                  href={`/blog/${next.slug}`}
+                  className="group col-start-2 flex flex-col gap-1 rounded-lg border p-4 text-end transition-colors hover:bg-accent"
+                >
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground justify-end">
+                    Next post
+                    <ChevronRight className="size-3" />
+                  </span>
+                  <span className="text-sm font-medium group-hover:text-primary transition-colors line-clamp-2">
+                    {next.title}
+                  </span>
+                </Link>
+              ) : (
+                <div />
+              )}
+            </nav>
+          )}
+        </article>
+
+        {/* Desktop TOC */}
+        <aside className="hidden xl:block">
+          <TableOfContents items={toc} />
+        </aside>
+      </div>
+      <Footer />
+    </>
+  )
 }

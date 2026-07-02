@@ -22,17 +22,16 @@ import {
 import { GitHubIcon } from "./icons/github-icon"
 
 type OpenDropdownProps = {
+  version: string
   slug: string
 }
 
-const REPO_DOCS_PATH = "ctrodb-docs/content/docs"
-
-export function OpenDropdown({ slug }: OpenDropdownProps) {
-  const pageUrl = `https://ctrodb.vercel.app/docs/${slug}`
+export function OpenDropdown({ version, slug }: OpenDropdownProps) {
+  const pageUrl = `https://ctrodb.vercel.app/docs/${version}/${slug}`
 
   const githubUrl =
     `https://github.com/ctrotech-tutor/ctrodb/blob/main/` +
-    `${REPO_DOCS_PATH}/${encodeURIComponent(slug)}.mdx`
+    `ctrodb-docs/content/${version}/docs/${encodeURIComponent(slug)}.mdx`
 
   const aiPrompt =
     `Review this documentation page and summarize it:\n${pageUrl}`
