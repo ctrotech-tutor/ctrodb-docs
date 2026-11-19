@@ -10,35 +10,39 @@ Lazy relation getters and eager loading are built into the core
 ## Schema definition
 
 ```ts
-const db = new Database({
-  schema: {
-    version: 1,
-    collections: {
-      users: {
-        fields: { name: { type: "string" } },
-        relations: {
-          posts: {
-            type: "has_many",
-            collection: "posts",
-            foreignKey: "userId",
-          },
+import { createDatabase, defineSchema } from "ctrodb"
+
+const schema = defineSchema({
+  version: 1,
+  collections: {
+    users: {
+      fields: { name: { type: "string" } },
+      relations: {
+        posts: {
+          type: "has_many",
+          collection: "posts",
+          foreignKey: "userId",
         },
       },
-      posts: {
-        fields: {
-          title: { type: "string" },
-          userId: { type: "number" },
-        },
-        relations: {
-          author: {
-            type: "belongs_to",
-            collection: "users",
-            foreignKey: "userId",
-          },
+    },
+    posts: {
+      fields: {
+        title: { type: "string" },
+        userId: { type: "string" },
+      },
+      relations: {
+        author: {
+          type: "belongs_to",
+          collection: "users",
+          foreignKey: "userId",
         },
       },
     },
   },
+})
+
+const db = createDatabase({
+  schema,
 })
 ```
 
@@ -57,13 +61,18 @@ The `.with(){:ts}` method on collections eager-loads related records:
 ```ts
 const users = await db.collection("users").with("posts").fetch()
 
-for (const user of users) {
-  console.log(user.name, user.posts.length)
-}
+// At runtime, `with()` populates each model's `posts` relation with an array.
 ```
 
 Eager loading reads related collections; it is not a join or a single indexed
 query. Declare each relation before requesting it.
+
+The current TypeScript return type still describes relation properties as lazy
+`QueryBuilder` accessors, even when `with()` has populated them at runtime. Use
+`Model.load()` when you need a correctly typed related model or array. The
+relation-specific types require a schema passed through `defineSchema()` and
+`createDatabase()`; `new Database()` remains available for runtime, untyped
+configurations.
 
 ```ts
 const posts = await db.collection("posts").with("author").fetch()
@@ -90,7 +99,7 @@ relation getters and eager loading do not depend on it. Relation declarations
 do not enforce foreign-key integrity or cascade deletes.
 
 ```ts
-import { relationsPlugin } from "ctrodb"
+import { Database, relationsPlugin } from "ctrodb"
 
 const db = new Database({
   plugins: [relationsPlugin()],

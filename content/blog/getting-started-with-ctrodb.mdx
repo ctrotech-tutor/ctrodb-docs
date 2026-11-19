@@ -10,9 +10,13 @@ tags:
 category: Getting Started
 ---
 
-ctrodb is a zero-dependency, reactive, client-side database that works in the browser and Node.js. It gives you a MongoDB-like API with full TypeScript support, IndexedDB persistence, and signal-based reactivity — all without a server.
+This tutorial uses the current ctrodb 1.13.2 API. ctrodb is a reactive,
+schema-driven client-side database for browsers and Node.js 20+. It has no
+required runtime dependencies; React bindings are an optional peer entry point
+that requires React 18 or newer.
 
-In this guide, you'll learn how to install ctrodb, define your first schema, and perform create, read, update, and delete operations.
+In this guide, you'll learn how to install ctrodb, define your first schema,
+and perform create, read, update, and delete operations.
 
 ## Installation
 
@@ -22,7 +26,10 @@ Install ctrodb via npm:
 npm install ctrodb
 ```
 
-ctrodb has zero runtime dependencies. The package ships ESM, CJS, and IIFE formats, so it works with any bundler or directly in the browser via a `<script>` tag.
+The package ships ESM, CJS, and IIFE formats. In Node.js, the automatic
+adapter falls back to memory; memory data is volatile and is cleared on
+disconnect. In browsers with IndexedDB, automatic adapter selection uses
+IndexedDB for persistence.
 
 ## Creating a Database
 
@@ -86,7 +93,7 @@ console.log(user.id) // auto-assigned
 console.log(user.name) // "Alice"
 
 // Read
-const found = await users.get(user.id)
+const found = await users.get(user.id) // Model | undefined
 const allUsers = await users.getAll()
 const count = await users.count()
 
@@ -105,8 +112,16 @@ The `put` method creates or updates a record by ID:
 // Create new
 const alice = await users.put({ name: "Alice", email: "alice@example.com" })
 
-// Update existing
-const updated = await users.put({ id: alice.id, age: 32 })
+// Update selected fields
+const updated = await users.update(alice.id, { age: 32 })
+
+// put() creates or upserts by ID; provide the complete record
+const saved = await users.put({
+  id: alice.id,
+  name: "Alice",
+  email: "alice@example.com",
+  age: 32,
+})
 ```
 
 ## Working with Models
@@ -154,6 +169,10 @@ const results = await users
 const total = await users.query().where("role", "admin").count()
 ```
 
+`search(field, text)` is a case-insensitive substring scan. For tokenized
+whole-word matching across schema `searchable` fields, use `match(query)`;
+`ftsPlugin()` can accelerate `match()` but is not required for correct results.
+
 ## Schema-less Mode
 
 ctrodb also works without a schema for quick prototyping:
@@ -170,7 +189,8 @@ const all = await items.getAll()
 console.log(all.length) // 2
 ```
 
-Without a schema, no validation or indexing occurs, but all CRUD operations work normally.
+Without a schema, no schema-based field validation or field indexes are
+configured, but CRUD operations still work normally.
 
 ## Next Steps
 

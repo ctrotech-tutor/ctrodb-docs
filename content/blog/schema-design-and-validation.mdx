@@ -10,7 +10,10 @@ tags:
 category: Schema
 ---
 
-ctrodb's schema system lets you define the shape, constraints, and defaults for your data. It enforces types at write time, applies default values, validates custom rules, and defines indexes for efficient queries. Good schema design is the foundation of a reliable client-side application.
+ctrodb's schema system lets you define the shape, constraints, and defaults for
+your data. Core validation runs on writes; `validationPlugin()` adds extra
+built-in and custom rules. Good schema design is the foundation of a reliable
+client-side application.
 
 ## Schema Structure
 
@@ -31,7 +34,9 @@ const schema = {
 }
 ```
 
-The `version` field enables schema migrations. ctrodb tracks applied versions in metadata and can detect when a schema has changed.
+For IndexedDB, `version` triggers object-store and index upgrades. ctrodb does
+not provide a user data-migration callback, transform existing records, or
+automatically delete stores removed from the schema.
 
 ## Field Types
 
@@ -109,7 +114,7 @@ const db = new Database({
     {
       name: "ageRange",
       validate(collection, field, value) {
-        if (field === "age" && (value < 0 || value > 150)) {
+        if (field === "age" && typeof value === "number" && (value < 0 || value > 150)) {
           return "Age must be between 0 and 150"
         }
         return null
@@ -133,7 +138,7 @@ fields: {
 ```typescript
 fields: {
   bio: { type: "string", maxLength: 500 },
-  code: { type: "string", min: 6, max: 6 },
+  code: { type: "string", validate: /^\d{6}$/ },
 }
 ```
 
@@ -152,11 +157,13 @@ fields: {
 }
 ```
 
-Function defaults (like the ISO date string above) are called for each new record, giving you dynamic default values.
+Function defaults (like the ISO date string above) are called for each new
+record, giving you dynamic default values. Defaults replace omitted or
+`undefined` fields, not explicit `null` values.
 
 ## Indexes
 
-Indexes enable efficient querying and uniqueness enforcement:
+Indexes can accelerate a suitable single-field query and enforce uniqueness:
 
 ```typescript
 indexes: [
@@ -166,17 +173,24 @@ indexes: [
 ]
 ```
 
-An index with `unique: true` prevents duplicate values. The query planner automatically uses indexes when available.
+The query planner can use at most one suitable scalar index for a query, then
+filters remaining conditions. Compound-index planning is not supported.
+Duplicate ID and unique-index failures currently reject with a plain `Error`.
 
 ## Searchable Fields
 
-Declare fields for full-text search (used by the FTS plugin):
+Declare string fields for tokenized matching:
 
 ```typescript
 { …,
   searchable: ["title", "body"],
 }
 ```
+
+`query().match()` uses these fields by default. It requires all remaining
+whole-word tokens to match; `ftsPlugin()` accelerates the search but is not
+required for correctness. `query().search(field, text)` is a separate
+case-insensitive substring scan.
 
 ## Complete Example: User Profile Schema
 
@@ -255,17 +269,17 @@ This is useful for prototyping, but for production applications, a well-defined 
 
 1. **Define schemas early** — Even for simple apps, a schema catches type errors at the data layer instead of in your UI.
 2. **Use required + default** — Required fields catch missing data, while defaults handle optional fields gracefully.
-3. **Index what you query** — Add indexes for fields used in `where`, `sort`, and `search`.
+3. **Index fields you filter** — Add indexes for equality and range filters; sorting and substring searches are not accelerated by these field indexes.
 4. **Set unique indexes** — For emails, usernames, slugs, or any field that must be unique.
 5. **Validate at the boundary** — The schema is your data validation layer. Use it alongside UI validation for defense in depth.
-6. **Version your schemas** — Increment `version` when making breaking changes to support future migrations.
+6. **Version your schemas** — Increment `version` when IndexedDB stores or indexes need an upgrade; write an explicit application migration for existing data.
 
 ## Summary
 
 ctrodb's schema system provides:
 
 - Five field types with runtime type enforcement
-- Built-in validators (email, URL, regex) plus custom rules via the validation plugin
+- Built-in schema validators (email, URL, regex) plus extra built-in and custom rules via the validation plugin
 - Numeric and string constraints (min, max, maxLength)
 - Static and dynamic default values
 - Index definitions for performance and uniqueness

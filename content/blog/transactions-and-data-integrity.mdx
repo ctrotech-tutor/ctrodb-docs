@@ -10,7 +10,9 @@ tags:
 category: Transactions
 ---
 
-When your application performs multiple related database operations, you need guarantees that either all operations succeed or none do. ctrodb provides a transaction API that ensures atomicity, along with a rich set of error types for precise error handling.
+When your application performs multiple related database operations, you need
+guarantees that either all operations succeed or none do. ctrodb provides
+transactions for atomic writes, plus typed errors for common database failures.
 
 ## The Transaction API
 
@@ -39,7 +41,10 @@ If any operation throws, all changes within the transaction are rolled back. The
 ### How Rollback Works
 
 - **Memory adapter**: The adapter snapshots the entire data state before the transaction. On error, it restores the snapshot.
-- **IndexedDB adapter**: Uses the native `IDBTransaction`. On error, it calls `.abort()` to discard all changes.
+- **IndexedDB adapter**: Uses a native `IDBTransaction`; if the callback fails,
+  the transaction is aborted. IndexedDB can automatically close a transaction
+  while the callback awaits unrelated work such as a timer or network request,
+  so keep external work outside the transaction.
 
 ## Transaction Context API
 
@@ -48,16 +53,19 @@ Inside a transaction, `ctx.collection(name)` returns a transaction-scoped collec
 ```typescript
 interface TransactionContext {
   collection(name: string): {
-    create(data: unknown): Promise<unknown>
-    findById(id: ID): Promise<unknown>
-    findAll(): Promise<unknown[]>
-    update(id: ID, changes: unknown): Promise<unknown>
+    create(data: Record<string, unknown>): Promise<Record<string, unknown>>
+    findById(id: ID): Promise<Record<string, unknown> | undefined>
+    findAll(): Promise<Record<string, unknown>[]>
+    update(id: ID, changes: Record<string, unknown>): Promise<Record<string, unknown>>
     delete(id: ID): Promise<void>
   }
 }
 ```
 
-Note that Model wrappers, validation, and plugin hooks do **not** run inside the transaction context. Transactions operate at the storage adapter level for atomicity guarantees.
+The transaction-scoped methods return records rather than collection `Model`
+instances and do not provide the query-builder API. Schema validation and
+before-hooks still run with transactional writes. After-hooks and change events
+run only after commit; aborted writes emit no post-commit events.
 
 ### Full Transaction Example
 
@@ -72,10 +80,14 @@ async function transferFunds(fromId: number, toId: number, amount: number) {
     const accounts = ctx.collection("accounts")
 
     const fromAccount = await accounts.findById(fromId)
-    if (!fromAccount) throw new Error("Sender not found")
+    if (!fromAccount || typeof fromAccount.balance !== "number") {
+      throw new Error("Sender not found or has an invalid balance")
+    }
 
     const toAccount = await accounts.findById(toId)
-    if (!toAccount) throw new Error("Recipient not found")
+    if (!toAccount || typeof toAccount.balance !== "number") {
+      throw new Error("Recipient not found or has an invalid balance")
+    }
 
     if (fromAccount.balance < amount) {
       throw new Error("Insufficient funds")
@@ -90,7 +102,9 @@ async function transferFunds(fromId: number, toId: number, amount: number) {
 
 ## Error Types
 
-ctrodb provides seven error classes for precise error handling:
+The core database error classes extend `CtrodbError`. Duplicate-ID and unique
+index violations currently throw plain `Error` instances. The sync response
+validator has a separate `SyncResponseValidationError` class.
 
 ```typescript
 import {
@@ -100,9 +114,13 @@ import {
   RecordNotFoundError,   // Missing record by ID
   SchemaError,           // Schema configuration errors
   ValidationError,       // Field validation failures
+  StorageQuotaError,     // Browser storage quota failures
   QueryError,            // Query execution errors
 } from "ctrodb"
 ```
+
+`QueryError` is exported but is not used for ordinary built-in query failures.
+`SyncResponseValidationError` extends `Error`, not `CtrodbError`.
 
 ### Handling Validation Errors
 
@@ -144,7 +162,7 @@ try {
     console.log("User not found")
   }
 
-  // update() and delete() throw RecordNotFoundError
+  // update() throws RecordNotFoundError for a missing ID
   await users.update(999, { name: "Ghost" })
 } catch (err) {
   if (err instanceof RecordNotFoundError) {
@@ -184,7 +202,7 @@ async function reserveInventory(orderId: number, items: OrderItem[]) {
 
     for (const item of items) {
       const stock = await inventory.findById(item.productId)
-      if (!stock || stock.quantity < item.quantity) {
+      if (!stock || typeof stock.quantity !== "number" || stock.quantity < item.quantity) {
         throw new Error(`Insufficient stock for product ${item.productId}`)
       }
       await inventory.update(item.productId, {
@@ -207,7 +225,7 @@ async function createUser(data: UserData) {
   }
 
   if (data.age < 13) {
-    throw new ValidationError("age", "users", data.age)
+    throw new ValidationError("users", "age", "must be at least 13", data.age)
   }
 
   return users.create(data)
@@ -255,8 +273,8 @@ const unsub = collection.onChange((event) => {
 
 ## Best Practices
 
-1. **Keep transactions short** — Long-running transactions hold locks (especially on IndexedDB).
-2. **Validate outside transactions** — Perform validation before entering the transaction to minimize rollback scenarios.
+1. **Keep transactions short** — IndexedDB may close a transaction while unrelated asynchronous work is pending.
+2. **Keep external work outside** — Schema validation also runs for transactional writes; avoid network work inside the callback.
 3. **Handle errors gracefully** — Use the specific error types to provide meaningful feedback to users.
 4. **Use transactions for multi-step operations** — Any operation that must be atomic should use `db.transaction()`.
 5. **Log rollbacks** — When a transaction fails, log the error for debugging while showing a user-friendly message.
@@ -267,9 +285,11 @@ ctrodb's transaction and error handling system ensures data integrity:
 
 - Atomic transactions with automatic rollback on failure
 - Works with both memory and IndexedDB adapters
-- Seven error types for precise error handling
+- Typed database errors for common failure classes (duplicate constraints use plain `Error`)
 - `ValidationError` with field/collection/value metadata
 - Global and collection-level change event subscriptions
 - Defensive validation patterns for production use
 
-Combined with schema validation and plugin hooks, these tools give you the data integrity guarantees you'd expect from a server-side database — entirely in the browser.
+Combined with schema validation and plugin hooks, transactions provide atomic
+write groups in the browser. They do not replace server-side authorization or
+data-integrity checks when syncing with a backend.

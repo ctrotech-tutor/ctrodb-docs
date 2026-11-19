@@ -10,7 +10,11 @@ tags:
 category: Plugins
 ---
 
-ctrodb's plugin system allows you to hook into every stage of the database lifecycle — from initialization to individual CRUD operations. Built-in plugins (FTS, relations, validation) are all implemented using the same plugin API available to you.
+ctrodb's plugin system lets you hook into database and collection lifecycle
+events and writes. The FTS and validation features use plugins; core relation
+access and schema validation work without `relationsPlugin()` or
+`validationPlugin()`. Those plugins are optional additions, not prerequisites
+for the core APIs.
 
 ## Plugin Interface
 
@@ -20,37 +24,66 @@ Every plugin implements the `CtroDBPlugin` interface:
 interface CtroDBPlugin {
   name: string
   version?: string
-  onDatabaseInit?(db: Database): void
-  onCollectionInit?(collection: Collection): void
-  onBeforeCreate?(collection: string, data: unknown): unknown
-  onAfterCreate?(collection: string, record: unknown): void
-  onBeforeUpdate?(collection: string, id: ID, changes: unknown): unknown
-  onAfterUpdate?(collection: string, id: ID, record: unknown, oldRecord?: unknown): void
-  onBeforeDelete?(collection: string, id: ID): void
-  onAfterDelete?(collection: string, id: ID, oldRecord?: unknown): void
+  storeNames?: (string | PluginStoreConfig)[]
+  onDatabaseInit?(db: unknown): void | Promise<void>
+  onDatabaseDestroy?(db: unknown): void | Promise<void>
+  onCollectionInit?(collection: unknown): void
+  onBeforeCreate?(collection: string, data: unknown, context?: WriteContext): unknown
+  onAfterCreate?(collection: string, record: unknown, context?: WriteContext): void
+  onAfterCreateMany?(collection: string, records: unknown[], context?: WriteContext): void
+  onBeforeUpdate?(collection: string, id: ID, changes: unknown, context?: WriteContext): unknown
+  onAfterUpdate?(collection: string, id: ID, record: unknown, oldRecord?: unknown, context?: WriteContext): void
+  onBeforeDelete?(collection: string, id: ID, context?: WriteContext): void
+  onAfterDelete?(collection: string, id: ID, oldRecord?: unknown, context?: WriteContext): void
 }
 ```
 
+Hook callbacks may be asynchronous; ctrodb awaits them. The database and
+collection callback parameters are typed as `unknown` in the public interface.
+`onDatabaseDestroy()` runs when the database disconnects. The optional write
+context identifies writes from the caller (`"local"`) or sync engine
+(`"remote"`). `createMany()` calls `onAfterCreateMany()` once for a batch when
+that hook is implemented.
+
 ### Hook Execution Order
 
-When a CRUD operation occurs, hooks fire in this order:
+For a create or update, ctrodb runs the before-hook before writing, then runs
+after-hooks and emits change events after the write succeeds:
 
-1. `onBeforeCreate` / `onBeforeUpdate` / `onBeforeDelete`
-2. Adapter operation (actual create/update/delete)
-3. `onAfterCreate` / `onAfterUpdate` / `onAfterDelete`
+1. Apply defaults and validate schema data on create.
+2. Run `onBeforeCreate` or `onBeforeUpdate` in plugin registration order.
+3. Validate merged update data, then write through the adapter.
+4. Run after-hooks and publish the change event.
+
+Delete runs `onBeforeDelete`, deletes through the adapter, then runs
+`onAfterDelete` and publishes its event. After-hook failures are logged and do
+not roll back a write that is already durable.
 
 ### Data Modification
 
-Only `onBeforeCreate` and `onBeforeUpdate` can modify data. If they return a value, that value replaces the original data before it reaches the adapter:
+Only `onBeforeCreate` and `onBeforeUpdate` can modify data. If they return a
+value, that value replaces the original data before it reaches the adapter.
+Create data is schema-validated before `onBeforeCreate`; a plugin that changes
+fields should preserve the schema constraints because the transformed create
+data is not validated again. Update data is validated after its before-hooks.
 
 ```typescript
-const timestampPlugin = {
+import type { CtroDBPlugin } from "ctrodb"
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return
+  return value as Record<string, unknown>
+}
+
+const timestampPlugin: CtroDBPlugin = {
   name: "timestamps",
-  onBeforeCreate(collection, data) {
-    return { ...data, createdAt: new Date().toISOString() }
+  onBeforeCreate(_collection, data) {
+    const record = asRecord(data)
+    return record ? { ...record, createdAt: new Date().toISOString() } : data
   },
-  onBeforeUpdate(collection, id, changes) {
-    return { ...changes, updatedAt: new Date().toISOString() }
+  onBeforeUpdate(_collection, _id, changes) {
+    const record = asRecord(changes)
+    return record ? { ...record, updatedAt: new Date().toISOString() } : changes
   },
 }
 ```
@@ -60,10 +93,13 @@ const timestampPlugin = {
 Log every write operation with timestamps:
 
 ```typescript
+import type { CtroDBPlugin } from "ctrodb"
+
 const auditPlugin: CtroDBPlugin = {
   name: "audit",
   async onAfterCreate(collection, record) {
-    console.log(`[AUDIT] Created ${collection}#${record.id}`)
+    const id = (record as { id?: unknown }).id
+    console.log(`[AUDIT] Created ${collection}#${String(id)}`)
   },
   async onAfterUpdate(collection, id, record, oldRecord) {
     console.log(`[AUDIT] Updated ${collection}#${id}`, { from: oldRecord, to: record })
@@ -79,26 +115,38 @@ const auditPlugin: CtroDBPlugin = {
 Auto-generate URL-friendly slugs from titles:
 
 ```typescript
-function slugPlugin(fields: { source: string; target: string }) {
+import { Database } from "ctrodb"
+import type { CtroDBPlugin } from "ctrodb"
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return
+  return value as Record<string, unknown>
+}
+
+function slugPlugin(fields: { source: string; target: string }): CtroDBPlugin {
   return {
     name: "slug-generator",
     onBeforeCreate(collection, data) {
-      if (data[fields.source] && !data[fields.target]) {
-        const slug = data[fields.source]
+      const record = asRecord(data)
+      const source = record?.[fields.source]
+      if (record && typeof source === "string" && !record[fields.target]) {
+        const slug = source
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/^-+|-+$/g, "")
-        return { ...data, [fields.target]: slug }
+        return { ...record, [fields.target]: slug }
       }
       return data
     },
     onBeforeUpdate(collection, id, changes) {
-      if (changes[fields.source] && !changes[fields.target]) {
-        const slug = changes[fields.source]
+      const record = asRecord(changes)
+      const source = record?.[fields.source]
+      if (record && typeof source === "string" && !record[fields.target]) {
+        const slug = source
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/^-+|-+$/g, "")
-        return { ...changes, [fields.target]: slug }
+        return { ...record, [fields.target]: slug }
       }
       return changes
     },
@@ -113,31 +161,21 @@ const db = new Database({
 })
 ```
 
-## Example 3: Soft Delete Plugin
+## Example 3: Prevent Hard Deletes
 
-Instead of permanently deleting records, mark them as deleted:
+Block direct deletes and expose an application-level archive operation. Add the
+`deletedAt` and `isDeleted` fields to the collection schema before using it.
 
 ```typescript
-function softDeletePlugin() {
-  return {
-    name: "soft-delete",
-    onBeforeDelete(collection, id) {
-      // Prevent actual deletion — throw to abort
-      throw new Error(
-        "Direct deletion not allowed. Use the archive method instead."
-      )
-    },
-  }
-}
+import { Database } from "ctrodb"
+import type { CtroDBPlugin } from "ctrodb"
+import type { ID } from "ctrodb"
 
-// Or use onBeforeUpdate to implement a "deleted" flag approach:
-function softDeleteFieldPlugin() {
+function preventHardDeletePlugin(): CtroDBPlugin {
   return {
-    name: "soft-delete-field",
+    name: "prevent-hard-delete",
     onBeforeDelete(collection, id) {
-      throw new Error(
-        "Use the archive function instead of delete."
-      )
+      throw new Error("Direct deletion not allowed. Use the archive method instead.")
     },
   }
 }
@@ -153,6 +191,7 @@ async function archive(db: Database, collection: string, id: ID) {
 The built-in validation plugin accepts custom rules:
 
 ```typescript
+import { Database } from "ctrodb"
 import { validationPlugin } from "ctrodb"
 import type { ValidationRule } from "ctrodb"
 
@@ -188,47 +227,13 @@ const db = new Database({
 })
 ```
 
-## Example 5: Encryption Plugin
+## Client-side encryption caveat
 
-Encrypt sensitive fields at rest:
-
-```typescript
-function encryptPlugin(secretKey: string) {
-  function encrypt(value: string): string {
-    // In production, use Web Crypto API
-    return Buffer.from(value).toString("base64")
-  }
-
-  function decrypt(value: string): string {
-    return Buffer.from(value, "base64").toString("utf-8")
-  }
-
-  return {
-    name: "field-encryption",
-    sensitiveFields: ["email", "ssn"] as string[],
-
-    onBeforeCreate(collection, data) {
-      const encrypted = { ...data }
-      for (const field of this.sensitiveFields) {
-        if (encrypted[field]) {
-          encrypted[field] = encrypt(String(encrypted[field]))
-        }
-      }
-      return encrypted
-    },
-
-    onBeforeUpdate(collection, id, changes) {
-      const encrypted = { ...changes }
-      for (const field of this.sensitiveFields) {
-        if (encrypted[field]) {
-          encrypted[field] = encrypt(String(encrypted[field]))
-        }
-      }
-      return encrypted
-    },
-  }
-}
-```
+Base64 encoding is not encryption, and code shipped to a browser cannot keep a
+static secret from the user who controls that browser. Do not treat a storage
+plugin as a security boundary. If the application needs encryption at rest,
+use a vetted cryptographic design and key-management flow appropriate to its
+threat model; ctrodb does not provide key management.
 
 ## Plugin Architecture
 
@@ -237,11 +242,11 @@ function encryptPlugin(secretKey: string) {
 ctrodb's internal `runHook` utility manages plugin execution:
 
 ```typescript
-function runHook(
+async function runHook(
   plugins: CtroDBPlugin[],
   hookName: keyof CtroDBPlugin,
   ...args: unknown[]
-): unknown
+): Promise<unknown>
 ```
 
 It iterates all plugins in order. For mutation hooks (`onBeforeCreate`, `onBeforeUpdate`), the return value of each plugin is passed as the data argument to the next plugin, enabling a pipeline pattern.
@@ -251,6 +256,8 @@ It iterates all plugins in order. For mutation hooks (`onBeforeCreate`, `onBefor
 Plugins execute in the order they are listed in the `plugins` array:
 
 ```typescript
+import { Database, ftsPlugin, validationPlugin } from "ctrodb"
+
 const db = new Database({
   plugins: [
     validationPlugin(),   // Runs first
@@ -297,7 +304,10 @@ The ctrodb plugin system lets you:
 - Modify data before it's written (create/update)
 - Observe operations after they complete
 - Add custom validation rules with the validation plugin
-- Build reusable behaviors (audit, encryption, slugs, soft delete)
+- Build reusable behaviors (audit logging, slug generation, and archive workflows)
 - Compose multiple plugins that pipeline data transformations
 
-The same API used by the built-in FTS, relations, and validation plugins is available to you. Whether you need cross-cutting concerns like audit logging or domain-specific logic like slug generation, the plugin system keeps your code modular and reusable.
+The FTS and validation features use the plugin API; relation access is built
+into the core. Whether you need cross-cutting concerns like audit logging or
+domain-specific logic like slug generation, plugins keep your code modular and
+reusable.

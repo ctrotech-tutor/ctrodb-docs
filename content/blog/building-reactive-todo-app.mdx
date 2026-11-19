@@ -10,6 +10,9 @@ tags:
   - example
 ---
 
+This example uses the current v1 React entry point, `ctrodb/react`. React is an
+optional peer dependency (version 18 or newer).
+
 The classic todo app is a good way to see how ctrodb's React hooks work in practice. This post walks through the full implementation.
 
 ## Setup
@@ -86,6 +89,8 @@ function TodoList() {
 ## Add todo form
 
 ```tsx
+import { useState } from "react"
+
 function AddTodo() {
   const { create, loading } = useMutation("todos")
   const [title, setTitle] = useState("")

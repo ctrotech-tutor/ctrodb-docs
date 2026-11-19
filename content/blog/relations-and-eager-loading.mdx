@@ -1,6 +1,6 @@
 ---
 title: "Relations and Eager Loading in ctrodb"
-description: "Model relationships between collections with has_many, belongs_to, has_one, and efficient eager loading."
+description: "Model relationships between collections with has_many, belongs_to, has_one, and built-in eager loading."
 date: "2026-06-30"
 author: ctrodb team
 tags:
@@ -17,7 +17,9 @@ Real applications have relational data: users have posts, posts have comments, o
 Relationships are defined in the `relations` field of a collection schema:
 
 ```typescript
-const schema = {
+import { createDatabase, defineSchema } from "ctrodb"
+
+const schema = defineSchema({
   version: 1,
   collections: {
     users: {
@@ -37,7 +39,8 @@ const schema = {
       fields: {
         title: { type: "string", required: true },
         body: { type: "string" },
-        userId: { type: "number", required: true },
+        userId: { type: "string", required: true },
+        createdAt: { type: "number" },
       },
       relations: {
         author: {
@@ -55,11 +58,12 @@ const schema = {
     comments: {
       fields: {
         text: { type: "string", required: true },
-        postId: { type: "number", required: true },
+        postId: { type: "string", required: true },
+        createdAt: { type: "number", required: true },
       },
     },
   },
-}
+})
 ```
 
 ### Relation Types
@@ -78,11 +82,13 @@ Lazy relation accessors are built into the `Model` class — no plugin needed. W
 const users = db.collection("users")
 
 // Fetch a user
-const user = await users.get(1)
+const user = await users.get("user-id")
 
-// Access posts relation lazily
-const userPosts = await user.posts // Returns QueryBuilder
-const posts = await userPosts.fetch()
+// get() may return undefined when the ID is missing
+if (user) {
+  // The relation property is a QueryBuilder; fetch() runs it
+  const posts = await user.posts.fetch()
+}
 ```
 
 Each relation property returns a `QueryBuilder` pre-configured to fetch the related records. Then you call `.fetch()` to execute the query.
@@ -96,23 +102,22 @@ When a collection schema defines relations, the `Model` constructor uses `Object
 
 The query is re-executed each time you call `.fetch()`, ensuring you always get the latest data.
 
-## Eager Loading with the Relations Plugin
+## Eager Loading
 
-Lazy relations make one query per access. When you're rendering a list with related data, eager loading eliminates the N+1 problem by fetching all related records in a single query.
+Lazy relations run a query each time they are accessed. For lists, eager loading
+through `Collection.with()` batches relation loading rather than querying once
+per model. Relation access and eager loading are built into the core; the
+relations plugin is not required.
 
 ### Setup
 
-Import and add the `relationsPlugin`:
+Create the database with the schema; no relation plugin is needed:
 
 ```typescript
-import { Database } from "ctrodb"
-import { relationsPlugin } from "ctrodb"
-
-const db = new Database({
+const db = createDatabase({
   name: "blog",
   adapter: "memory",
   schema,
-  plugins: [relationsPlugin()],
 })
 
 await db.connect()
@@ -120,38 +125,39 @@ await db.connect()
 
 ### Using `.with()`
 
-When the relations plugin is active, collections gain a `.with()` method for eager loading:
+When the collection schema declares relations, `.with()` can eagerly load them:
 
-```typescript
+```js
 const posts = db.collection("posts")
-
-// Fetch posts with their authors pre-loaded
 const postsWithAuthors = await posts.with("author").fetch()
+const firstPost = postsWithAuthors[0]
+console.log(firstPost?.author?.name) // Loaded at runtime, if the author exists
 
-postsWithAuthors[0].author.name // "Alice" (already loaded)
-
-// Fetch with multiple relations
 const fullPosts = await posts
   .with("author", "comments")
   .fetch()
-
-fullPosts[0].author.name        // Already loaded
-fullPosts[0].comments.length    // Already loaded
 ```
+
+These are runtime shapes. TypeScript currently types relation properties on
+`with()` results as lazy `QueryBuilder` accessors, not as eager values.
+With a schema created by `defineSchema()` and a database created by
+`createDatabase()`, use `Model.load()` when you need a correctly typed
+related value.
 
 ### How Eager Loading Works
 
 When you call `.with("author", "comments")`:
 
 1. The main query fetches all posts (or applies your `where`/`sort`/etc.)
-2. For `belongs_to` ("author"): collects all unique `userId` values, fetches matching users in one query, assigns to each post
-3. For `has_many` ("comments"): collects all post IDs, fetches matching comments in one query, groups by `postId`, assigns to each post
+2. Related collections are read and matched to the requested relation fields.
 
-This reduces N+1 queries to just 3 queries total (posts + users + comments).
+This reduces per-record query overhead, but eager loading currently reads the
+full related collection for each requested relation. It is not a targeted
+indexed join and may be expensive for large related collections.
 
 ## Practical Example: Blog Dashboard
 
-```typescript
+```javascript
 async function loadDashboard() {
   const posts = db.collection("posts")
 
@@ -164,8 +170,8 @@ async function loadDashboard() {
 
   return postsWithData.map((post) => ({
     title: post.title,
-    author: post.author.name,
-    commentCount: post.comments.length,
+    author: post.author?.name,
+    commentCount: post.comments?.length ?? 0,
     lastComment: post.comments
       .sort((a, b) => b.createdAt - a.createdAt)[0]?.text,
   }))
@@ -178,12 +184,12 @@ Eager loading is one level deep. For deeper nesting, you can lazy-load relation 
 
 ```typescript
 const users = await db.collection("users").with("posts").fetch()
-// users[0].posts is loaded
-// users[0].posts[0].comments is NOT loaded (lazy access)
-
-// You can load the next level lazily
-const firstUserFirstPost = users[0].posts[0]
-const comments = await firstUserFirstPost.comments.fetch()
+const firstUser = users[0]
+const firstUserPosts = firstUser ? await firstUser.load("posts") : []
+const firstPost = firstUserPosts[0]
+const comments = firstPost
+  ? await firstPost.load("comments")
+  : []
 ```
 
 ## Empty and Missing Relations
@@ -191,16 +197,23 @@ const comments = await firstUserFirstPost.comments.fetch()
 ctrodb handles edge cases gracefully:
 
 ```typescript
-// User with no posts → posts is an empty array
-const newUser = await users.create({ name: "New User" })
-const posts = await newUser.posts.fetch()
-console.log(posts.length) // 0
+const usersCollection = db.collection("users")
+const postsCollection = db.collection("posts")
 
-// Post with missing author → author returns []
-await posts.create({ title: "Orphan", body: "...", userId: 999 })
-const orphan = await posts.query().where("title", "Orphan").first()
-const author = await orphan.author.fetch()
-console.log(author) // []
+// User with no posts → posts is an empty array
+const newUser = await usersCollection.create({ name: "New User" })
+const userPosts = await newUser.posts.fetch()
+console.log(userPosts.length) // 0
+
+// Post with missing author → the relation query has no result
+await postsCollection.create({
+  title: "Orphan",
+  body: "...",
+  userId: "missing-user",
+})
+const orphan = await postsCollection.query().where("title", "Orphan").first()
+const author = orphan ? await orphan.author.first() : undefined
+console.log(author) // undefined
 ```
 
 ## Performance Considerations
@@ -208,9 +221,10 @@ console.log(author) // []
 | Approach | Queries | Best For |
 |---|---|---|
 | Lazy access | 1 + N queries | Single-record views, detail pages |
-| Eager loading (.with()) | 1 + R queries (R = relation count) | Lists, dashboards, APIs |
+| Eager loading (.with()) | Main query plus a full read of each related collection | Lists with moderate related collections |
 
-Always prefer eager loading when displaying lists of records with their related data.
+Use eager loading to avoid one relation query per model, but account for the
+full related-collection reads it currently performs.
 
 ## Schema-less Relations
 
@@ -222,8 +236,10 @@ ctrodb's relations system provides:
 
 - Three relation types: `has_many`, `belongs_to`, `has_one`
 - Lazy accessors built into every Model (plugin-free)
-- Eager loading via `.with()` with the relations plugin
-- N+1 query elimination
+- Eager loading via `.with()` without a required plugin
+- Batched relation loading, with full related-collection reads
 - Automatic relation getter generation from schema
 
-Whether you're building a blog, an e-commerce catalog, or a social feed, the relations system keeps your data model expressive and your queries efficient.
+Whether you're building a blog, an e-commerce catalog, or a social feed, schema
+relations keep your data model expressive. Benchmark eager loads with realistic
+collection sizes because they currently read each related collection in full.
