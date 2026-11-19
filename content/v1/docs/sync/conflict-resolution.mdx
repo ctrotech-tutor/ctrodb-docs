@@ -48,7 +48,7 @@ syncPlugin({
 
 | Strategy | Behavior |
 |----------|----------|
-| `"lww"` (default) | **Last-writer-wins**. Compares timestamps. If timestamps match, server wins. |
+| `"lww"` (default) | **Last-writer-wins**. Compares timestamps; remote wins ties. |
 | `"client-wins"` | Local version always wins. Server is overwritten. |
 | `"server-wins"` | Remote version always wins. Local changes are discarded. |
 | `"custom"` | Your own logic via `conflictResolver` function. |
@@ -60,7 +60,6 @@ The default strategy. Compares `localTimestamp` and `remoteTimestamp`:
 - If local is newer → local wins
 - If remote is newer → remote wins
 - If timestamps are equal → remote wins (tiebreaker)
-- If one version doesn't exist (deleted) → the existing version wins
 
 ### Client-wins
 

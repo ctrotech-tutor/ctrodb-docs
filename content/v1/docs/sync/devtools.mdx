@@ -103,7 +103,7 @@ length:
 ```ts
 import { createSyncEventLog } from "ctrodb"
 
-const log = createSyncEventLog(db, maxEvents = 50)
+const log = createSyncEventLog(db, 50)
 
 // Later:
 console.log(log.events)

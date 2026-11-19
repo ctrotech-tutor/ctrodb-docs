@@ -55,24 +55,14 @@ tracker.append("delete", "todos", id, null, oldData)
 
 ## ChangeTracker methods
 
-### init()
-
-```ts
-async init(): Promise<void>
-```
-
-Resets any orphaned `syncing` records back to `pending`. This handles
-crash recovery — if the page closed mid-sync, those changes will be
-re-attempted on the next sync cycle.
-
 ### getPending()
 
 ```ts
 async getPending(): Promise<SyncChangeRecord[]>
 ```
 
-Returns all `pending` and `failed` records, sorted by timestamp (oldest first).
-Failed records are retried alongside pending ones.
+Returns `pending` and `failed` records sorted oldest first. Failed changes are
+retried until they reach the configured retry limit.
 
 ### markSyncing / markCommitted / markFailed
 
@@ -93,8 +83,8 @@ async countPending(): Promise<number>
 async countByStatus(status: SyncChangeStatus): Promise<number>
 ```
 
-Uses the `status` index for fast counting. `countPending` returns
-`pending + failed` — the total number of changes waiting to be pushed.
+`countPending` includes changes waiting to be pushed, including failed changes
+that remain eligible for retry.
 
 ### removeCommitted
 
@@ -102,21 +92,19 @@ Uses the `status` index for fast counting. `countPending` returns
 async removeCommitted(): Promise<number>
 ```
 
-Deletes all `committed` records. Called at the end of a successful sync
-cycle to prevent the store from growing unbounded.
+Deletes committed records from the sync store.
 
-## Cross-tab broadcasting
+## Persistence
 
-When a change is recorded, the tracker broadcasts it via `BroadcastChannel`
-(`"ctrodb:sync"` channel). Other tabs receive this and can trigger their
-own sync, keeping multiple windows in sync without polling.
+The sync queue is stored through the database adapter. With IndexedDB, queue
+records persist across reloads; with the memory adapter, they are lost when
+the database disconnects or the process exits.
 
-If `BroadcastChannel` is unavailable (Node.js, older browsers), the
-broadcast is silently skipped — cross-tab sync still works via the
-auto-sync interval.
+On initialization, orphaned `syncing` records are returned to `pending` so
+changes left by a closed page can be retried.
 
-## Crash recovery
+## Cross-tab notifications
 
-If the browser crashes while changes are in `syncing` status, the
-`init()` method automatically resets them to `pending` on next page load.
-No data is lost.
+When available, `BroadcastChannel` messages notify other tabs of local
+changes and trigger a debounced sync. This notification does not replace the
+shared IndexedDB-backed queue.

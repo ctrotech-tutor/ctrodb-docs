@@ -47,14 +47,13 @@ const transport = new HttpTransport({
 
 ### Push
 
-Sends a `POST /push` with JSON body `{ changes: [...] }`. Expects a
+Sends a request to the `/push` route with JSON body `{ changes: [...] }`. Expects a
 `SyncPushResult` response.
 
 ### Pull
 
-Sends to `/pull` — either `POST` (default) with JSON body or `GET` with
-query parameters. Accepts `cursor`, `collections`, and `batchSize` in
-either form. Expects a `SyncPullResult` response.
+Sends a request to `/pull` and expects a `SyncPullResult` response. The
+transport passes the pull cursor, requested collections, and batch size.
 
 ### Rate limiting (429)
 
@@ -64,9 +63,9 @@ The sync engine's backoff mechanism handles retry timing.
 
 ### Connectivity check
 
-If `pingEndpoint` is configured, `connect()` sends a `HEAD` request to
-verify the server is reachable. Otherwise, `connect()` succeeds if the
-base URL responds.
+When `pingEndpoint` is configured, the transport uses a `HEAD` request to
+that endpoint as its connectivity check. Without one, do not treat transport
+connection state as a health check of the sync routes.
 
 ```ts
 new HttpTransport({
@@ -90,7 +89,7 @@ import { WsTransport } from "ctrodb"
 
 const transport = new WsTransport({
   url: "wss://api.example.com/sync",
-  headers: { token: "your-token" },      // sent as auth message after connect
+  headers: { token: "your-token" },      // sent in an auth protocol message after connect
   reconnectIntervalMs: 3000,             // base interval between reconnects
   maxReconnectAttempts: 10,              // 0 = infinite
   requestTimeoutMs: 30000,               // per-request timeout
@@ -116,20 +115,24 @@ Response validation is automatic — `validatePushResult` and
 
 ### Server push (real-time)
 
-The server can send unsolicited changes to the client without the client
-polling:
+The server can send unsolicited changes to the client without waiting for
+the next scheduled sync:
 
 ```json
 { "type": "server_push", "payload": [ { "id": "...", "collection": "todos", ... } ] }
 ```
 
-Handle with the `onServerPush` callback:
+Register a callback to observe the push:
 
 ```ts
 const unsub = wsTransport.onServerPush((changes) => {
-  // Apply incoming changes immediately
+  console.log("Server notified the client of", changes.length, "changes")
 })
 ```
+
+When used by `syncPlugin()`, a server push triggers a sync cycle so the engine
+can pull and apply the changes. The callback itself is only a notification; it
+does not write those records to the database.
 
 ### Reconnection
 

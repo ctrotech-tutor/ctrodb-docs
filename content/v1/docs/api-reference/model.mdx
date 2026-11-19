@@ -49,6 +49,16 @@ toJSON(): T
 
 Returns a plain copy of the data — no methods or proxy.
 
+### load()
+
+```ts
+load(name: string): Promise<Model<T> | Model<T>[] | undefined>
+```
+
+Resolves a declared relation directly: `has_many` returns an array, while
+`belongs_to` and `has_one` return a model or `undefined`. Relation names are
+typed when the schema shape is known.
+
 ## Relation getters
 
 Auto-attached when the schema defines relations. No plugin required.

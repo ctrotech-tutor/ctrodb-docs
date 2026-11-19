@@ -3,7 +3,9 @@ title: Validation
 description: Custom validation rules for create and update
 ---
 
-The validation plugin adds custom rules beyond schema-level validation.
+Schema validation for required fields, types, defaults, and field constraints
+runs in core and does not require this plugin. The validation plugin adds
+additional built-in and custom rules.
 
 ## Setup
 
@@ -26,7 +28,7 @@ const db = new Database({
 })
 ```
 
-## Built-in rules
+## Additional built-in rules
 
 | Rule | Checks |
 |------|--------|

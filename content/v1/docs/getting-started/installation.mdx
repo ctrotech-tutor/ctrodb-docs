@@ -1,21 +1,21 @@
 ---
 title: Installation
-description: How to install ctrodb
+description: Install ctrodb 1.13.2 in Node.js, a browser, or a React application
 ---
 
 <InstallTabs />
 
 ## Requirements
 
-* Use `Node.js{:bash}` version `20+{:txt}` for Node environments
-* ctrodb works in any modern browser and `Node.js{:bash}` `20+{:txt}`
+* Node.js `20+{:txt}` is required for Node environments
+* ctrodb works in modern browsers
 * TypeScript declarations are bundled — no need for `@types/ctrodb{:bash}`
-* React bindings are included via `ctrodb/react{:ts}` — no additional package required
+* React bindings are exported from `ctrodb/react{:ts}` and require React 18 or newer
 
 ## CDN
 
 ```html
-<script src="https://unpkg.com/ctrodb@1.4.0/dist/index.global.js"></script>
+<script src="https://unpkg.com/ctrodb@1.13.2/dist/index.global.js"></script>
 ```
 
 After loading from CDN, access the library globally using `CtroDB{:js}`.
@@ -25,7 +25,11 @@ After loading from CDN, access the library globally using `CtroDB{:js}`.
 ```ts
 import { Database } from "ctrodb"
 
-const db = new Database()
+const db = new Database({ adapter: "memory" })
+await db.connect()
 ```
 
-If this runs successfully, ctrodb is ready to use.
+Use `adapter: "memory"` for a quick smoke test. In browsers, the default adapter
+is IndexedDB when available; in other environments it is memory. A database
+without a schema can connect, but define a schema to create collection stores
+for IndexedDB.

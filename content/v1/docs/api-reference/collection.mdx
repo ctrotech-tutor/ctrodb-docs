@@ -23,6 +23,20 @@ create(data: Omit<T, "id"> & { id?: ID }): Promise<Model<T> & T>
 
 Creates a record. Generates a UUID if no `id` is provided. Applies defaults, validates schema, runs plugin hooks.
 
+Generated IDs are strings (UUID where available, timestamp/random fallback
+otherwise); supplied IDs may be strings or numbers.
+
+### createMany()
+
+```ts
+createMany(records: readonly (Omit<T, "id"> & { id?: ID })[]): Promise<Array<Model<T> & T>>
+```
+
+Validates the batch before writing and creates all records atomically. The
+built-in IndexedDB and memory adapters implement an atomic bulk write; adapters
+without native bulk creation fall back to sequential calls and are not atomic.
+One create event is emitted per inserted record.
+
 ### get()
 
 ```ts
@@ -53,7 +67,8 @@ Merges changes into an existing record. Throws if record not found.
 delete(id: ID): Promise<void>
 ```
 
-Deletes a record by ID. Returns normally even if the record does not exist.
+Deletes a record by ID. A missing ID is a no-op; a change event may still be
+emitted. The method resolves with `void`.
 
 ### deleteMany()
 
@@ -61,7 +76,7 @@ Deletes a record by ID. Returns normally even if the record does not exist.
 deleteMany(ids: ID[]): Promise<void>
 ```
 
-Deletes multiple records. Silently skips missing IDs.
+Deletes multiple records and skips missing IDs.
 
 ```ts
 await notes.deleteMany([1, 2, 3])

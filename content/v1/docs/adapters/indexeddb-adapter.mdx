@@ -42,9 +42,9 @@ await db.connect()
 
 ## Schema migration
 
-When you bump `schema.version`, IndexedDB fires `onupgradeneeded`. The adapter
-creates new object stores and indexes for any that don't already exist.
-Existing data is preserved.
+When you increase `schema.version`, IndexedDB fires `onupgradeneeded`. The
+adapter creates missing object stores and indexes. Existing records are
+preserved; ctrodb does not run a user-provided data-migration callback.
 
 ```ts
 const db = new Database({
@@ -74,14 +74,17 @@ For plugin stores (`schema.pluginStoreNames`):
 
 The `_ctrodb_meta` store is created if it doesn't exist.
 
-**Existing stores and indexes are never modified or deleted** — IndexedDB does
-not support altering existing indexes. To change an index, you must use a new
-store name or delete the database.
+Removed collections are not automatically deleted, and removed or changed
+fields are not migrated. Schema versioning creates missing stores/indexes but
+does not transform existing records. Plan any data backfill as an explicit
+application migration.
 
 ## scanIndex — native IDB indexes
 
 Unlike the MemoryAdapter (which scans in JavaScript), the IndexedDBAdapter uses
-native IDB indexes for `scanIndex()`:
+native IDB indexes for `scanIndex()`. The public adapter contract passes a
+storage-neutral `QueryRange`; the adapter translates it into an IndexedDB
+range internally:
 
 ```ts
 // Internal implementation (simplified)
@@ -89,44 +92,56 @@ function idbScanIndex(db, collection, indexName, range, postFilters) {
   const tx = db.transaction(collection, "readonly")
   const store = tx.objectStore(collection)
   const index = store.index(indexName)
-  const request = range ? index.getAll(range) : index.getAll()
+  const idbRange = range ? toIDBKeyRange(range) : undefined
+  const request = idbRange ? index.getAll(idbRange) : index.getAll()
   // ... apply postFilters, resolve
 }
 ```
 
 This means:
 
-- Only records matching the `IDBKeyRange` are loaded from disk — **not** the
+- Only records matching the index range are loaded from disk — **not** the
   full collection
-- The native B-tree index makes lookups O(log n) instead of O(n)
-- Post-filter conditions are still applied in JavaScript (for compound
-  conditions that can't be expressed as a single IDBKeyRange)
+- The native index avoids scanning the full collection when the range is selective
+- Remaining conditions are applied after the index lookup
 
-### IDBKeyRange usage
+### QueryRange conversion
 
-The query planner creates `IDBKeyRange` objects for index-scan queries:
+`QueryRange` contains optional `lower` / `upper` scalar values and
+`lowerOpen` / `upperOpen` flags. An IndexedDB adapter can convert this
+descriptor into native `IDBKeyRange` values:
 
 ```ts
-IDBKeyRange.only(value)                 // field == value
-IDBKeyRange.lowerBound(value)           // field >= value
-IDBKeyRange.lowerBound(value, true)     // field > value
-IDBKeyRange.upperBound(value)           // field <= value
-IDBKeyRange.upperBound(value, true)     // field < value
-IDBKeyRange.bound(lower, upper)         // lower <= field <= upper
-IDBKeyRange.bound(lower, upper, lOpen, uOpen) // inclusive/exclusive bounds
+function toIDBKeyRange(range: QueryRange): IDBKeyRange {
+  if (range.lower !== undefined && range.upper !== undefined) {
+    return IDBKeyRange.bound(
+      range.lower,
+      range.upper,
+      range.lowerOpen,
+      range.upperOpen,
+    )
+  }
+  if (range.lower !== undefined) {
+    return IDBKeyRange.lowerBound(range.lower, range.lowerOpen)
+  }
+  if (range.upper !== undefined) {
+    return IDBKeyRange.upperBound(range.upper, range.upperOpen)
+  }
+  throw new Error("An empty range cannot be converted to IDBKeyRange")
+}
 ```
 
 ### Post-filter conditions
 
-After the index scan, post-filter conditions are applied in JavaScript.
-These support the full query operator set (`==`, `!=`, `>`, `>=`, `<`, `<=`)
-but skip `search` type conditions (handled by the FTS plugin).
+The adapter must honor the supplied post-filter conditions. The query executor
+also evaluates query predicates against candidates. `.search()` remains a
+substring scan; `match()` may use FTS-index candidates, but still verifies
+matching results.
 
 ## Transaction behavior
 
-Transactions use `IDBTransaction` with `readwrite` mode spanning **all**
-object stores. This is a single-transaction scope — all reads and writes
-within the callback share the same transaction.
+Transactions use a native IndexedDB transaction. Reads and writes made
+through the transaction-scoped collections share its transaction.
 
 ```ts
 await db.transaction(async (ctx) => {
@@ -156,8 +171,9 @@ const todos = ctx.collection("todos")
 await todos.create({ id: "1", title: "A" })
 ```
 
-This differs from the `MemoryAdapter`, where `ctx.collection()` returns the
-raw adapter and you must pass the collection name to each method.
+Keep the callback free of unrelated asynchronous work: IndexedDB can
+automatically close a transaction when it is idle, including while awaiting
+network requests or timers.
 
 ### Rollback
 

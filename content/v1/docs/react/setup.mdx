@@ -3,7 +3,8 @@ title: React Setup
 description: Using ctrodb with React
 ---
 
-React bindings are included in the main package — no separate install needed.
+React bindings are shipped with ctrodb through the `ctrodb/react` export;
+React 18 or newer is an optional peer dependency.
 
 ```ts
 import { useQuery, useDoc, useMutation } from "ctrodb/react"
@@ -11,28 +12,47 @@ import { useQuery, useDoc, useMutation } from "ctrodb/react"
 
 ## DatabaseProvider
 
-Wrap your app to make the database available to hooks:
+Connect the database before rendering the provider. Create one database
+instance and share it with the hooks:
 
 ```tsx
+import { createRoot } from "react-dom/client"
+import { Database } from "ctrodb"
 import { DatabaseProvider } from "ctrodb/react"
 
-const db = new Database({ ... })
+const db = new Database({
+  schema: {
+    version: 1,
+    collections: {
+      todos: {
+        fields: {
+          title: { type: "string", required: true },
+          done: { type: "boolean", default: false },
+        },
+      },
+    },
+  },
+})
 await db.connect()
 
-export default function App() {
-  return (
-    <DatabaseProvider db={db}>
-      <Todos />
-    </DatabaseProvider>
-  )
-}
+createRoot(document.getElementById("root")!).render(
+  <DatabaseProvider db={db}>
+    <App />
+  </DatabaseProvider>,
+)
 ```
+
+Hooks such as `useQuery`, `useDoc`, and `useMutation` read the database from
+this provider. They subscribe to library change events and update React
+components when relevant data changes.
 
 ## setDefaultDatabase (deprecated)
 
 > **Deprecated**: Use `<DatabaseProvider>` instead. Will be removed in v2.0.
 
-If you cannot use a provider, set the default database globally:
+The global `setDefaultDatabase()` / `getDb()` helpers remain available in v1
+for applications that cannot use a provider, but are deprecated and planned
+for removal in v2:
 
 ```ts
 import { setDefaultDatabase } from "ctrodb/react"

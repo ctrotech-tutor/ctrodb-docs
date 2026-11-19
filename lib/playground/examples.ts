@@ -185,8 +185,8 @@ results.forEach((r) => console.log(" -", r.title))`,
   },
   {
     name: "Relations",
-    description: "Define relationships between collections in the schema",
-    code: `const { Database, relationsPlugin } = CtroDB
+    description: "Use built-in relation getters and eager loading",
+    code: `const { Database } = CtroDB
 
 const db = new Database({
   adapter: "memory",
@@ -200,14 +200,13 @@ const db = new Database({
         },
       },
       posts: {
-        fields: { title: { type: "string" }, authorId: { type: "number" } },
+        fields: { title: { type: "string" }, authorId: { type: "string" } },
         relations: {
           author: { type: "belongs_to", collection: "authors", foreignKey: "authorId" },
         },
       },
     },
   },
-  plugins: [relationsPlugin()],
 })
 await db.connect()
 
@@ -256,8 +255,8 @@ await accounts.create({ name: "Alice", balance: 100 })
 await accounts.create({ name: "Bob", balance: 50 })
 
 // Transfer 30 from Alice to Bob atomically.
-// Inside a transaction, use ctx.collection() which returns
-// a raw CRUD interface (no schema validation or model wrapping).
+// Use transaction-scoped collections for every operation in the transaction.
+// Validation runs in the transaction; post-commit events fire only after it commits.
 await db.transaction(async (ctx) => {
   const raw = ctx.collection("accounts")
   const all = await raw.findAll()

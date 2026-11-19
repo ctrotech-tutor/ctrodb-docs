@@ -3,7 +3,8 @@ title: Transactions
 description: Atomic operations with automatic rollback
 ---
 
-Transactions group multiple operations into a single atomic unit. If any operation fails, all changes are rolled back.
+Transactions group multiple database operations into one atomic unit. If the
+callback throws, the adapter rolls back its writes.
 
 ## Basic usage
 
@@ -16,11 +17,15 @@ const result = await db.transaction(async (ctx) => {
 })
 ```
 
-Both creates succeed together, or neither is applied.
+Both creates succeed together, or neither is committed. Transactional writes
+run validation and before-hooks in the transaction; after-hooks and change
+events run only after commit. Aborted writes emit no post-commit events.
 
 ## TransactionContext API
 
-Inside a transaction callback, `ctx.collection(name){:ts}` returns a bound collection with raw CRUD methods:
+Inside a transaction callback, use the transaction-scoped collection returned
+by `ctx.collection(name){:ts}`. Do not use `db.collection()` for work that must
+participate in the transaction.
 
 | Method | Signature | Description |
 |---|---|---|
@@ -30,15 +35,17 @@ Inside a transaction callback, `ctx.collection(name){:ts}` returns a bound colle
 | `update{:ts}` | `(id: ID, changes: Partial<T>) => Promise<T & { id: ID }>{:ts}` | Update an existing record |
 | `delete{:ts}` | `(id: ID) => Promise<void>{:ts}` | Delete a record |
 
-Note: `ctx.collection(){:ts}` returns raw adapter methods, not the `Collection{:ts}` API. Methods like `query(){:ts}`, `get(){:ts}`, `getAll(){:ts}`, `count(){:ts}`, `put(){:ts}`, and `deleteMany(){:ts}` are not available inside transactions.
+The transaction-scoped collection provides CRUD operations; it is not the full
+query-builder API. Keep reads and writes inside the callback on that scoped
+collection.
 
 ```ts
 const result = await db.transaction(async (ctx) => {
-  const adapter = ctx.collection("orders")
-  const order = await adapter.create({ item: "book", qty: 1 })
-  const found = await adapter.findById(order.id)
-  await adapter.update(order.id, { status: "confirmed" })
-  await adapter.delete(order.id)
+  const orders = ctx.collection("orders")
+  const order = await orders.create({ item: "book", qty: 1 })
+  const found = await orders.findById(order.id)
+  await orders.update(order.id, { status: "confirmed" })
+  await orders.delete(order.id)
 })
 ```
 
@@ -75,23 +82,11 @@ const ids = await db.transaction(async (ctx) => {
 console.log(ids) // [1, 2]
 ```
 
-## Adapter behavior
+The IndexedDB adapter uses a native IndexedDB transaction. IndexedDB may
+automatically close a transaction while the callback awaits unrelated work
+(such as a network request or timer), so perform external work before or after
+the transaction. The memory adapter uses an in-memory snapshot; its data is
+still volatile and is lost on disconnect.
 
-- **IndexedDBAdapter**: uses native `IDBTransaction{:ts}`, calls `tx.abort(){:ts}` on error. `ctx.collection(name){:ts}` returns bound methods (`findAll(){:ts}`, `findById(){:ts}`, `create(){:ts}`, etc.) — no collection name parameter needed.
-- **MemoryAdapter**: takes a snapshot before the transaction runs, restores it on error. `ctx.collection(name){:ts}` returns the raw adapter, so you must pass the collection name to each method: `adapter.findAll("todos"){:ts}`, `adapter.create("todos", data){:ts}`.
-
-```ts
-// IndexedDB — bound methods
-await db.transaction(async (ctx) => {
-  const todos = ctx.collection("todos")
-  await todos.create({ title: "A" })
-})
-
-// Memory — raw adapter with collection name
-await db.transaction(async (ctx) => {
-  const adapter = ctx.collection("todos")
-  await adapter.create("todos", { title: "A" })
-})
-```
-
-No nesting support — calling `db.transaction(){:ts}` inside a transaction starts a new independent transaction.
+Avoid nested transactions. Keep the callback limited to its scoped database
+operations so all reads and writes share the same transaction.

@@ -1,6 +1,5 @@
 import { getDoc, getAllDocSlugs } from "@/lib/content"
-import { getSidebar } from "@/lib/sidebar"
-import { isValidVersion, getDefaultVersion, getVersionLabel } from "@/lib/versions"
+import { isValidVersion, getDefaultVersion } from "@/lib/versions"
 import { notFound, permanentRedirect } from "next/navigation"
 import Link from "next/link"
 import { TableOfContents } from "@/components/toc"
@@ -19,6 +18,7 @@ function getBreadcrumbs(version: string, slug: string[]): { label: string; href:
     "core-concepts": "Core Concepts",
     adapters: "Adapters",
     plugins: "Plugins",
+    sync: "Sync",
     react: "React",
     "api-reference": "API Reference",
     examples: "Examples",
