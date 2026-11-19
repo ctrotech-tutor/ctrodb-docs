@@ -12,6 +12,11 @@ tags:
 
 Building ctrodb through six alpha releases to a stable v1.0.0 taught us a few things about TypeScript library design. Here is what we learned.
 
+> **Historical perspective:** This post describes the library as it stood at
+> v1.0.0. Test counts, bundle-size notes, plugin architecture, and plans below
+> are from that release; the current documented release is v1.13.2. See the
+> [current upgrade guide](/docs/v1/migration/upgrading-v1) for current behavior.
+
 ## Zero dependencies is a feature
 
 The decision to have zero runtime dependencies shaped the entire architecture. Every feature had to be implemented from scratch or not included. This forced us to:
@@ -42,7 +47,11 @@ Integration tests catch issues that unit tests miss. A test that creates, querie
 
 ## The plugin model scales
 
-Instead of building everything into the core, we extracted FTS search, relations, and validation into plugins. The plugin hook interface (before/after create/update/delete) has been stable since alpha.3. All three built-in plugins work together because they operate on different lifecycle hooks.
+At v1.0.0, FTS, relations, and validation were presented as plugins. In the
+current v1.13.2 release, schema validation and relation APIs also work without
+their corresponding plugins; the FTS plugin remains an optional index for
+tokenized `match()` queries. The plugin hook interface has evolved since this
+post, including async lifecycle hooks and write context.
 
 ## Versioning lessons
 
@@ -56,4 +65,6 @@ One thing we would do differently: ship the React bindings earlier.
 
 ## What is next
 
-Now that v1.0.0 is stable, the focus is on documentation, examples, and community. The API is not expected to change in breaking ways.
+At the time of writing, the focus was documentation, examples, and community,
+and we expected no breaking API changes. That was a v1.0.0-era expectation, not
+a guarantee about future releases.

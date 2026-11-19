@@ -31,11 +31,15 @@ const db = new Database({
 
 ## How it works
 
-The plugin stores a token-to-document mapping in a `_ctrodb_fts{:ts}` collection.
+The plugin stores postings in the internal `_ctrodb_fts{:ts}` store. Each
+posting represents one collection-token-document association; the store's
+record layout is an implementation detail.
 
 **Indexing:**
-- On create/update/delete, tokens are extracted from searchable fields
-- Each token maps to the set of document IDs containing it
+- On create/update/delete, postings are added, changed, or removed for tokens
+  extracted from searchable fields
+- Tokens are stored as per-document postings rather than a shared array of
+  document IDs, so concurrent writes do not overwrite one another
 - Tokens are lowercased, deduplicated, and filtered for stop words
 
 ## Substring search

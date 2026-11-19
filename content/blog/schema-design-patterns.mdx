@@ -39,14 +39,16 @@ Do this:
   posts: {
     fields: {
       title: { type: "string" },
-      userId: { type: "number" },
+      userId: { type: "string" },
     },
     indexes: [{ field: "userId" }]
   }
 }
 ```
 
-Use the relations plugin to connect them.
+Declare relations in the schema to connect them. Lazy relation access and
+`Collection.with()` eager loading are built in; `relationsPlugin()` is optional
+and not required for these APIs.
 
 ## 2. Defaults for temporal fields
 
@@ -57,7 +59,8 @@ createdAt: { type: "number", default: () => Date.now() }
 updatedAt: { type: "number", default: () => Date.now() }
 ```
 
-There is no auto-update on mutation — you need to set `updatedAt` manually in your `update` calls.
+There is no automatic update on mutation — set `updatedAt` in your update calls
+or implement that behavior in a plugin.
 
 ## 3. Enums via validation
 
@@ -74,7 +77,7 @@ Or use the validation plugin for more complex rules.
 
 ## 4. Unique fields via indexes
 
-Set `unique: true` on an index to prevent duplicates:
+Set `unique: true` on an index to prevent duplicate values:
 
 ```ts
 indexes: [
@@ -82,21 +85,25 @@ indexes: [
 ]
 ```
 
-The unique constraint is enforced by IndexedDB's index uniqueness.
+The configured adapter enforces the unique constraint. Duplicate-ID and
+unique-index failures currently reject with a plain `Error`.
 
 ## 5. Searchable fields
 
-Mark string fields as `searchable` when you need full-text search:
+Mark string fields as `searchable` when you need tokenized `match()` queries:
 
 ```ts
 searchable: ["title", "description"]
 ```
 
-Only string fields should be marked searchable. The FTS plugin ignores non-string values.
+Only string fields should be marked searchable. `match()` works without a
+plugin; `ftsPlugin()` maintains an index to accelerate matching. A regular
+field index does not accelerate substring `search()`.
 
 ## 6. Version your schema
 
-The `version` field in SchemaConfig triggers IndexedDB migrations:
+The `version` field in `SchemaConfig` controls IndexedDB object-store and index
+upgrades:
 
 ```ts
 {
@@ -105,7 +112,9 @@ The `version` field in SchemaConfig triggers IndexedDB migrations:
 }
 ```
 
-Start at version 1 and increment each time you change the schema shape. This ensures IndexedDB creates the correct object stores.
+Increment it when the IndexedDB stores or indexes need an upgrade. ctrodb does
+not provide a user data-migration callback or automatically delete removed
+stores. Backfill or transform existing records with an application migration.
 
 ## 7. Keep it small
 

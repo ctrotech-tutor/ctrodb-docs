@@ -10,7 +10,10 @@ tags:
 category: Queries
 ---
 
-The ctrodb QueryBuilder provides a fluent, chainable API for querying your data. Whether you need simple equality filters, paginated results, full-text search, or complex logical conditions, the query system handles it efficiently with index-aware planning.
+The ctrodb QueryBuilder provides a fluent, chainable API for querying your data.
+It supports equality and range filters, offset pagination, tokenized matching,
+and complex logical conditions. The planner can use one suitable scalar index
+and then filters the remaining conditions.
 
 ## Basic Filtering
 
@@ -90,7 +93,9 @@ const sorted = await users.query().sort({ name: "asc" }).fetch()
 const sorted = await users.query().sort({ age: "desc" }).fetch()
 ```
 
-Only single-field sort is currently supported. Combine with limit and offset for pagination.
+Only the first sort property is used. Sorting is applied in memory; combine it
+with limit and offset for pagination. Without an explicit sort, results are in
+ascending primary-key order. Cursor pagination is not supported.
 
 ## Pagination
 
@@ -145,7 +150,21 @@ const results = await articles
   .fetch()
 ```
 
-This performs a case-insensitive `String.includes()` match. For production-grade full-text search with an inverted index, see the FTS plugin (covered in a separate guide).
+This performs a case-insensitive substring scan of `title`. It does not use
+the FTS index.
+
+For tokenized whole-word search, use `match()`:
+
+```typescript
+const results = await articles
+  .query()
+  .match("typescript database", ["title", "body"])
+  .fetch()
+```
+
+`match()` removes common stop words and requires every remaining whole-word
+token to match. The FTS plugin can accelerate it; without the plugin it still
+returns the same results using a scan.
 
 ## How Query Execution Works
 
@@ -156,17 +175,16 @@ When you call `.fetch()`, ctrodb:
    - `index_scan` — Uses an indexed field for range scanning
    - `full_scan` — Loads all records and filters in memory
 
-2. **Executes the plan** — The `QueryExecutor` runs the plan against the storage adapter, applying post-filters for conditions that can't be pushed down to the index.
+2. **Executes the plan** — The `QueryExecutor` runs the plan against the storage adapter, applying post-filters for conditions that can't be pushed down to the index. At most one suitable single-field index is selected; compound indexes are not supported.
 
 3. **Post-processes** — Results are sorted, offset, and limited in memory.
 
-### Index Priority
+### Index selection
 
-The planner assigns priority to indexed conditions:
-- Unique equality (`==`) — highest priority
-- Non-unique equality (`==`)
-- Range operators (`>`, `<`, `>=`, `<=`)
-- Inequality (`!=`) — lowest priority
+The planner selects one suitable indexed condition, preferring equality over
+range comparisons and unique equality over non-unique equality. Other
+conditions are checked as post-filters. Booleans and structured values cannot
+drive an IndexedDB key-range scan.
 
 ## Practical Example: Product Catalog
 
@@ -206,25 +224,17 @@ const results = await products
 
 ## Debugging Queries
 
-Set the log level to `"debug"` on your database to see query plans:
-
-```typescript
-const db = new Database({
-  name: "shop",
-  schema,
-  logLevel: "debug", // logs query plans and execution
-})
-```
-
-The console will show the selected strategy, index usage, and execution timing.
+`logLevel` is accepted by the database configuration but is currently
+reserved; it does not log query plans. Inspect query behavior through results
+and targeted profiling instead.
 
 ## Query Performance Tips
 
-1. **Define indexes** on fields you query frequently — the planner uses them automatically.
-2. **Lead with your most selective condition** — equality on an indexed field is fastest.
-3. **Use `limit()`** whenever you don't need all results.
-4. **Prefer `count()` over `fetch().length`** — the count is computed from the filtered result set length without materializing models.
-5. **Avoid `!=` on indexed fields** — inequality can't use index ranges efficiently.
+1. **Define indexes** on fields you filter frequently.
+2. **Use `limit()`** whenever you don't need all results.
+3. **Remember the single-index limit** — other predicates are post-filtered, and compound indexes are not planned.
+4. **Do not assume `count()` avoids fetching** — it returns the number of matching results, but is not a separate indexed count plan.
+5. **Expect substring search to scan** — use `match()` for tokenized search and add `ftsPlugin()` when indexing is useful.
 
 ## Summary
 
@@ -233,7 +243,7 @@ The ctrodb QueryBuilder provides:
 - Fluent chainable API with `where`, `orWhere`, `sort`, `limit`, `offset`
 - Convenience methods: `first()`, `count()`, `toArray()`
 - Index-aware query planning for performance
-- Built-in substring search
+- Case-insensitive substring `search()` and tokenized `match()`
 - AND/OR logic for complex conditions
 
 Whether you're building a simple filter or a complex data grid, the query system is designed to be both expressive and performant.

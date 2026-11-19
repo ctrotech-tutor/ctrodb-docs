@@ -14,7 +14,10 @@ Full-text search is one of the most requested features for client-side applicati
 
 ## How It Works
 
-The FTS plugin builds an inverted index: for each token (word) in your searchable fields, it stores the set of document IDs that contain that token. When you search, it tokenizes your query, looks up each token's document set, and intersects them to find matching records.
+The FTS plugin builds an inverted index from searchable fields. It stores a
+posting for each collection, token, and document ID. A tokenized query looks up
+each token's postings and intersects the document IDs to find records that
+contain every term.
 
 ```
 Token: "typescript" → Documents: [1, 3, 7, 12]
@@ -39,6 +42,8 @@ const schema = {
       fields: {
         title: { type: "string", required: true },
         body: { type: "string", required: true },
+        published: { type: "boolean" },
+        createdAt: { type: "string" },
       },
       searchable: ["title", "body"],
     },
@@ -59,19 +64,24 @@ The `searchable` field tells the plugin which fields to index.
 
 ## Searching
 
-Use the `search()` method on the QueryBuilder:
+Use `match()` for tokenized, whole-word matching:
 
 ```typescript
 const articles = db.collection("articles")
 
 const results = await articles
   .query()
-  .search("title", "react")
+  .match("react hooks", ["title", "body"])
   .where("published", true)
   .sort({ createdAt: "desc" })
   .limit(10)
   .fetch()
 ```
+
+`match()` requires every non-stop-word token to match. It works without the
+plugin by scanning records; `ftsPlugin()` accelerates it when the index is
+available. In contrast, `.search("title", "react")` is a case-insensitive
+substring scan and does not use the FTS index.
 
 ## Tokenization
 
@@ -84,26 +94,29 @@ const tokens = tokenize("React Hooks: A Comprehensive Guide")
 // ["react", "hooks", "comprehensive", "guide"]
 ```
 
-It converts to lowercase, splits on non-alphanumeric characters, and removes 34 common English stop words.
+It converts to lowercase, splits on non-alphanumeric characters, removes
+duplicates, and filters common English stop words.
 
 ## Performance
 
-Search performance depends on token count and result set size. For typical datasets, searches complete in milliseconds. The inverted index is stored in a special `_ctrodb_fts` collection.
+Search cost depends on query token count and the matching posting sets; avoid
+assuming a fixed latency. The internal `_ctrodb_fts` store contains posting
+records, and its layout is an implementation detail.
 
 ## When to Use FTS vs. Basic Search
 
-- **Basic search** (`query().search()`) — Case-insensitive substring match, full scan, no index. Good for small datasets.
-- **FTS plugin** — Token-based whole-word matching, inverted index, stop word removal. Good for any dataset size.
+- **Substring search** (`query().search()`) — Case-insensitive substring scan of one field.
+- **Tokenized matching** (`query().match()`) — Whole-word AND matching across searchable fields; the FTS plugin can accelerate it.
 
 ## Summary
 
-The FTS plugin brings production-quality search to the browser with zero external dependencies — no search service, no API key, no network request.
+The FTS plugin provides tokenized whole-word matching locally, with no external
+search service, API key, or network request.
 
 ### Key Points
 
-- Automatic indexing via plugin hooks on create/update/delete
-- Inverted index with configurable tokenization
-- Stop word removal for better relevance
+- Automatic posting maintenance via plugin hooks on create/update/delete
+- Tokenized whole-word matching with stop-word removal
 - Multi-field search with the query builder
-- Millisecond search times on typical datasets
+- Search cost depends on the query and matching postings; benchmark with your data
 - Works with both memory and IndexedDB adapters

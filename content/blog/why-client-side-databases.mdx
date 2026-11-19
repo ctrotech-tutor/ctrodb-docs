@@ -12,7 +12,9 @@ tags:
 
 ## The latency problem
 
-Users expect instant feedback. Click a button, see a result. No spinners, no loading states. But every network request adds 50-500ms of latency, and that adds up. A database that runs in the same process as your UI cuts that to zero.
+Users expect instant feedback. A local database avoids waiting for a network
+round trip, although its reads and writes are still asynchronous operations.
+Remote requests add variable latency, and that adds up.
 
 ## Offline is the default
 
@@ -22,24 +24,33 @@ Mobile users go through tunnels. Desktop users lose WiFi. Progressive web apps n
 
 Existing client-side storage options each have trade-offs:
 
-- **localStorage**: synchronous, blocking, 5MB limit, strings only
+- **localStorage**: synchronous, blocking, strings only, with browser-managed
+  storage limits
 - **IndexedDB raw**: powerful but verbose, no schema, error-prone
 - **SQLite (via WASM)**: heavy, complex, overkill for most apps
-- **ctrodb**: schema-driven, reactive, zero deps, ~25KB
+- **ctrodb**: schema-driven and reactive, with IndexedDB and memory adapters
 
-ctrodb wraps IndexedDB (and memory storage) with a clean TypeScript API. You define your schema, get validation and indexes for free, and react to changes with a simple event system.
+ctrodb wraps IndexedDB and memory storage with a TypeScript API. Its automatic
+adapter uses IndexedDB when available and otherwise uses volatile memory
+storage. Define a schema for validation and indexes, and subscribe to changes
+through its event system.
 
 ## The pattern that works
 
 The most successful local-first apps follow a pattern:
 
 1. **Local database** is the source of truth
-2. **UI renders from local data** — no loading states for reads
-3. **Writes go to local DB first** — instant feedback
-4. **Background sync** pushes to server when connected
+2. **UI renders from local data** — reads avoid the network round trip
+3. **Writes go to local DB first** — the UI need not wait for a network round trip
+4. **Background sync** pushes to a server when connected
 
-ctrodb handles steps 1-3. The sync layer is up to you.
+ctrodb provides the local database and also offers an optional sync plugin with
+HTTP, WebSocket, and custom transports. You still choose and operate the server
+and sync protocol for your application; synchronization starts only when
+configured.
 
 ## Where to start
 
-If you are building a new app, try starting with a client-side database and adding server sync later. You will be surprised how much you can build without a backend.
+If you are building a new app, start with local persistence and add remote sync
+when the product needs it. You can build and use local-first features without
+configuring a sync server.
