@@ -12,8 +12,10 @@ Internal — use `collection.query(){:ts}`.
 ### where()
 
 ```ts
-where(field: string, value: unknown): this
-where(field: string, op: string, value: unknown): this
+where(field: "id", value: ID | undefined): this
+where(field: "id", op: QueryOperator, value: ID | undefined): this
+where<K extends keyof T & string>(field: K, value: T[K]): this
+where<K extends keyof T & string>(field: K, op: QueryOperator, value: T[K]): this
 ```
 
 Supported operators: `==`, `!=`, `>`, `<`, `>=`, `<=`.
@@ -32,7 +34,9 @@ Groups conditions with OR logic. Multiple `where` calls inside the same
 const items = await todos
   .query()
   .where("status", "active")
-  .orWhere((q) => q.where("priority", "high").where("assigned", true))
+  .orWhere((q) =>
+    q.where("priority", "high").where("assigned", "==", true),
+  )
   .fetch()
 ```
 
@@ -76,12 +80,24 @@ const results = await todos
 search(field: string, query: string): this
 ```
 
-Case-insensitive substring search. With FTS plugin, uses the index.
+Case-insensitive substring search on the selected field. This operation scans
+candidate records and does not use the FTS index.
+
+### match()
+
+```ts
+match(query: string, fields?: readonly StringKeys<T>[]): this
+```
+
+Tokenizes the query, removes common English stop words, and requires all
+remaining whole-word terms to match. By default searches the collection's
+schema `searchable` fields. The FTS plugin can accelerate this query but is not
+required for correctness.
 
 ### fetch()
 
 ```ts
-fetch(): Promise<(Model<T> & T)[]>
+fetch(): Promise<ModelInstance<T, R>[]>
 ```
 
 Executes the query and returns results.
@@ -89,7 +105,7 @@ Executes the query and returns results.
 ### first()
 
 ```ts
-first(): Promise<(Model<T> & T) | undefined>
+first(): Promise<ModelInstance<T, R> | undefined>
 ```
 
 Shortcut for `.limit(1).fetch()` returning `results[0]`.

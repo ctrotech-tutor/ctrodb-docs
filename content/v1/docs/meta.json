@@ -47,6 +47,7 @@
     "examples/node-cli",
     "examples/react-spa",
     "migration/from-alpha",
+    "migration/upgrading-v1",
     "migration/schema-migrations",
     "contributing"
   ]

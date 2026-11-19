@@ -7,7 +7,8 @@ As your application grows, you'll need to add fields, change validation rules, o
 
 ## Schema version
 
-Each schema has a `version{:ts}` number. This is used by the IndexedDB adapter to trigger database upgrades.
+Each schema has a positive `version{:ts}` number. Increasing it triggers an
+IndexedDB upgrade so newly declared stores and indexes can be created.
 
 ```ts
 const schema = {
@@ -47,7 +48,8 @@ Defaults are applied at write time (when creating or updating records), not retr
 
 ## Adding indexes
 
-Indexes are created during `db.connect(){:ts}`. New indexes only apply to the IndexedDB adapter:
+Indexes are created during IndexedDB upgrades. The memory adapter does not
+provide native indexes, so its indexed scans still examine records:
 
 ```ts
 const schema = {
@@ -65,36 +67,43 @@ const schema = {
 
 ## Making fields required
 
-Making an existing field `required: true` will cause validation errors for records that lack it. Plan accordingly — either backfill data or keep it optional.
+Making an existing field `required: true` can make later writes to legacy
+records fail validation until those records are backfilled. Backfill first,
+then require the field in a later application release.
 
 ## Removing fields
 
-ctrodb does not automatically remove data from existing records when you remove a field from the schema. The field still exists in stored data but won't be validated. To clean up, write a one-time migration script.
+ctrodb does not automatically remove data from existing records when you
+remove a field from the schema, and removed object stores are not deleted.
+Write and test an explicit data migration if cleanup is required.
 
 ## Manual data migration
 
-For complex migrations, run a script after `db.connect(){:ts}`:
+ctrodb does not expose a user-defined schema-migration callback. For complex
+migrations, connect using a schema that can still read the old records, then
+run an application-owned migration script:
 
 ```ts
 const db = new Database({ schema })
 await db.connect()
 
-// Check current version and migrate
-const adapter = db._getAdapter()
-const version = await adapter.getSchemaVersion()
-
-if (version < 2) {
-  const users = await db.collection("users").getAll()
-  for (const user of users) {
-    await user.update({ role: "user" }) // backfill new field
+const users = await db.collection("users").getAll()
+for (const user of users) {
+  if (user.role === undefined) {
+    await user.update({ role: "user" })
   }
-  await adapter.setSchemaVersion(2)
 }
 ```
 
+Track completion with application-owned migration state; avoid relying on the
+private `_getAdapter()` method as a public migration API.
+
 ## Under the hood: IndexedDB versioning
 
-When using the IndexedDB adapter, the `schema.version` field maps directly to the IndexedDB database version. The adapter automatically creates object stores and indexes during the `onupgradeneeded` event. Existing stores are not modified — only new stores and indexes are created.
+When using the IndexedDB adapter, `schema.version` maps to the IndexedDB
+database version. The adapter creates missing object stores and indexes during
+`onupgradeneeded`; it does not transform existing records or remove stores
+omitted from a later schema.
 
 ## Memory adapter
 

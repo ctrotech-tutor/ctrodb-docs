@@ -5,7 +5,7 @@ export type VersionInfo = {
 }
 
 const versions: VersionInfo[] = [
-  { label: "v1.0.0", version: "v1", badge: "Stable" },
+  { label: "v1.13.2", version: "v1", badge: "Current" },
 ]
 
 export function getVersions(): VersionInfo[] {

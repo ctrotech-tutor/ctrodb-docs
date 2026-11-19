@@ -49,21 +49,12 @@ function App() {
 }
 ```
 
-## Cross-tab synchronization
+## Multiple tabs
 
-When using IndexedDB in a browser, multiple tabs share the same database.
-The sync engine coordinates across tabs via `BroadcastChannel`:
-
-1. Tab A writes a record → `onAfterCreate` fires → change is appended to
-   `_ctrodb_sync_changes` → `BroadcastChannel` message is sent
-2. Tab B receives the message → triggers a debounced sync → pulls any
-   new remote changes
-3. Tab B also picks up Tab A's local changes (since both tabs share the
-   same IndexedDB) — but the change tracker avoids double-pushing because
-   each change has a unique UUID
-
-**No coordination needed** — just ensure both tabs use the same IndexedDB
-database (same `name` in `Database` constructor).
+Tabs using the same IndexedDB database name share persisted records and the
+sync queue. When `BroadcastChannel` is available, a local change notifies
+other tabs and triggers a debounced sync. The server should still handle
+repeated requests idempotently.
 
 ## Server-side considerations
 
@@ -86,7 +77,7 @@ async function handlePush(req, res) {
 
   for (const change of changes) {
     try {
-      const latest = await db.get(change.collection, change.recordId)
+      const latest = await db.collection(change.collection).get(change.recordId)
       if (latest && latest.updatedAt > change.timestamp) {
         // Conflict!
         conflicts.push({
@@ -149,14 +140,16 @@ new HttpTransport({
   url: "https://api.example.com/sync",
   headers: {
     Authorization: `Bearer ${token}`,
-    "X-App-Version": "1.4.0",
+    "X-App-Version": "1.13.2",
   },
 })
 ```
 
-The sync engine does not manage auth — pass the token from your app's
-auth flow. If the token expires, transport calls will fail (401), and
-the engine will retry with backoff until the token is refreshed.
+The sync engine does not manage auth — pass the HTTP token from your app's
+auth flow. For `WsTransport`, configured `headers` are sent in an auth protocol
+message after connection; they are not browser WebSocket handshake headers.
+After refreshing an expired token, retry queued failures using the sync API or
+queue tools.
 
 ## Error handling patterns
 
@@ -257,5 +250,5 @@ setInterval(async () => {
 - **Debounce** — `debounceMs` of 500-1000ms coalesces rapid local writes
   into a single sync request.
 - **Response validation** — `validatePushResult` and `validatePullResult`
-  catch malformed server responses early. Consider disabling in production
-  for performance if your server contract is stable.
+  validate server responses. Treat malformed responses as a protocol error
+  and correct the server contract rather than disabling validation.

@@ -3,7 +3,9 @@ title: Error Handling
 description: Working with ctrodb's error classes
 ---
 
-ctrodb throws typed errors for common failure scenarios. All custom errors extend `CtrodbError{:ts}`.
+ctrodb exports typed errors for connection, schema, validation, and storage
+failures. Duplicate-ID and unique-index violations currently reject with a
+plain `Error`, not a dedicated duplicate error class.
 
 ## Error hierarchy
 
@@ -12,9 +14,14 @@ CtrodbError{:ts}
 ├── ConnectionError{:ts}
 ├── SchemaError{:ts}
 ├── ValidationError{:ts}
+├── CollectionNotFoundError{:ts}
+├── RecordNotFoundError{:ts}
+└── StorageQuotaError{:ts}
 ```
 
-Additional error classes (`CollectionNotFoundError{:ts}`, `RecordNotFoundError{:ts}`, `QueryError{:ts}`) exist in the library but are not currently thrown by ctrodb's built-in operations — they're available for your own use or plugin development.
+`QueryError{:ts}` is also exported, but is not used for ordinary built-in
+query failures. `RecordNotFoundError{:ts}` is thrown when updating a missing
+record. Deleting a missing ID is a no-op.
 
 ## Catching errors
 
@@ -42,7 +49,7 @@ try {
 
 ## ConnectionError
 
-Thrown when performing operations without an active connection.
+Thrown when using a collection before the database is connected.
 
 ```ts
 try {
@@ -95,11 +102,10 @@ try {
 
 ## Additional error classes
 
-These classes are exported and constructable but not thrown by ctrodb itself:
-
-- `CollectionNotFoundError(name, availableCollections?){:ts}` — for schema-constrained lookups
-- `RecordNotFoundError(collection, id){:ts}` — for record-level lookups
-- `QueryError(message){:ts}` — for malformed queries
+- `CollectionNotFoundError(name, availableCollections?){:ts}` — when requesting an undeclared collection from a schema-constrained database
+- `RecordNotFoundError(collection, id){:ts}` — when updating a missing record
+- `StorageQuotaError(message){:ts}` — for storage quota failures
+- `QueryError(message){:ts}` — exported, but not used for ordinary built-in query failures
 
 You can use them in your own code or plugins for consistent error types.
 

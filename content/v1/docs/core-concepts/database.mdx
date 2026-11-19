@@ -17,7 +17,7 @@ const db = new Database(config?: DatabaseConfig)
 | `adapter{:ts}` | `"indexeddb" \| "memory" \| StorageAdapter{:ts}` | auto | Storage backend |
 | `schema{:ts}` | `SchemaConfig{:ts}` | — | Schema definition |
 | `plugins{:ts}` | `CtroDBPlugin[]{:ts}` | — | Plugin list |
-| `logLevel{:ts}` | `"debug" \| "info" \| "warn" \| "error" \| "silent"{:ts}` | — | Accepted, currently not implemented |
+| `logLevel{:ts}` | `"debug" \| "info" \| "warn" \| "error" \| "silent"{:ts}` | — | Accepted but currently has no effect |
 
 ## Connect / Disconnect
 
@@ -27,7 +27,9 @@ await db.disconnect()
 ```
 
 `connect(){:ts}` initializes the adapter and triggers `onDatabaseInit{:ts}` on plugins.
-Call once before using collections. `disconnect(){:ts}` clears all collection caches.
+Connect before using collections. `disconnect(){:ts}` closes the adapter and
+clears collection caches. The memory adapter also loses its data on disconnect.
+IndexedDB connections persist data across page reloads.
 
 ## Properties
 
@@ -43,7 +45,8 @@ db.name          // string
 const todos = db.collection("todos")
 ```
 
-Collections are lazily created — first access initializes a new `Collection<T>{:ts}`.
+Collections are cached and created lazily. With a schema, requesting an
+undeclared collection throws `CollectionNotFoundError{:ts}`.
 
 ## Transactions
 
@@ -54,8 +57,10 @@ const result = await db.transaction(async (ctx) => {
 })
 ```
 
-If the callback throws, all changes are rolled back.
-The transaction context provides raw CRUD methods — `findAll(){:ts}`, `findById(){:ts}`, `create(){:ts}`, `update(){:ts}`, `delete(){:ts}` — not the full Collection API.
+If the callback throws, its writes are rolled back. Use only transaction-scoped
+collections inside the callback. IndexedDB transactions can auto-close if the
+callback waits on unrelated asynchronous work; keep the transaction focused on
+database operations.
 
 See the [Transactions guide](/docs/core-concepts/transactions) for details.
 
@@ -76,6 +81,8 @@ await db.sync()
 ```
 
 Triggers a full sync cycle (push local changes, pull remote changes).
+Transport failures are reported through sync status and events; `sync()` does
+not reject for ordinary transport errors.
 
 ```ts
 const unsub = db.onSync((event) => {
@@ -117,3 +124,21 @@ unsub() // cleanup
 | `recordId{:ts}` | `number \| string{:ts}` | Record ID |
 | `record{:ts}` | `unknown{:ts}` | New value (create/update) |
 | `oldRecord{:ts}` | `unknown{:ts}` | Previous value (update/delete) |
+
+## IndexedDB connection changes
+
+When another tab upgrades the same IndexedDB database, the existing
+connection may be invalidated. Subscribe to `onConnectionChange()` to react:
+
+```ts
+const unsubscribe = db.onConnectionChange((event) => {
+  if (event.type === "versionchange") {
+    console.warn(event.message)
+    // Reload or reconnect with a schema that includes the new version.
+  }
+})
+```
+
+ctrodb closes its stale connection; the database instance becomes disconnected.
+Call `connect()` again with a schema at least as new as the upgraded database,
+or reload the application.

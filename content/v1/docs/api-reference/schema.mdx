@@ -9,8 +9,10 @@ description: API reference for the Schema class
 new Schema(config: SchemaConfig)
 ```
 
-Throws `SchemaError{:ts}` on invalid config (no version, no collections, empty collection,
-index referencing nonexistent field).
+Throws `SchemaError{:ts}` when required schema configuration is missing or
+an index refers to a field not declared in that collection. Relation target
+names and unknown field-type strings are not fully validated during schema
+construction; validate those definitions in your own schema tests.
 
 ## Properties
 

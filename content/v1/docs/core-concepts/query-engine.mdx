@@ -3,7 +3,7 @@ title: Query Engine
 description: Filter, sort, and paginate records
 ---
 
-`QueryBuilder{:ts}` provides a fluent API for reading data. It does not support joins —
+`QueryBuilder{:ts}` provides a fluent API for reading data. It does not support joins;
 use [relations](/docs/plugins/relations) for related data.
 
 ## Basic usage
@@ -69,13 +69,28 @@ Use `offset` with `limit` for pagination. Offset skips records before slicing.
 query.search("title", "database")
 ```
 
-Case-insensitive substring search (`String.includes(){:js}`). The [FTS plugin](/docs/plugins/full-text-search)
-adds an inverted index, accessible via `FTSIndexer.search(){:ts}`.
+Case-insensitive substring search (`String.includes(){:js}`) over the selected
+field. This works without a plugin and scans candidate records.
+
+## match
+
+```ts
+query.match("database schema")
+query.match("database schema", ["title", "body"])
+```
+
+`match()` tokenizes the input, removes common English stop words, and requires
+all remaining whole-word tokens to match. By default it searches the
+collection's schema `searchable` fields. Unlike `search()`, it is not a
+substring query.
+
+The [FTS plugin](/docs/plugins/full-text-search) can accelerate matching with
+an inverted index; it is optional for correct search results.
 
 ## Terminal methods
 
 ```ts
-await query.fetch()              // Model<T> & T[]
+await query.fetch()              // (Model<T> & T)[]
 await query.first()              // Model<T> & T | undefined
 await query.count()              // number
 await query.toArray()            // T[] (plain objects)
@@ -89,13 +104,15 @@ The `QueryPlanner{:ts}` examines conditions and indexes to pick a strategy:
 
 | Strategy | When | How |
 |----------|------|-----|
-| `index_scan{:ts}` | Field has an index | Uses IndexedDB index with key range |
 | `id_lookup{:ts}` | Querying by `id{:ts}` field with `==` | Direct adapter lookup |
+| `index_scan{:ts}` | A suitable single-field index exists | Uses the best available index, then filters remaining conditions |
 | `full_scan{:ts}` | No index match | Iterates all records, filters in memory |
 
-Sort, offset, and limit are applied in memory after fetching.
+Sorting is applied in memory. The default order is ascending by primary key.
+Only one sort field is used (the first supplied); offset and limit are applied
+after filtering. Cursor pagination and compound indexes are not supported.
 
 ## Sorting behavior
 
-Uses JavaScript's `<` and `>` comparison. Mixed types compare via `<`/`>` rules —
-numbers sort numerically, strings lexicographically.
+Uses JavaScript's `<` and `>` comparison. Numbers sort numerically and strings
+lexicographically; avoid mixing incomparable field types.

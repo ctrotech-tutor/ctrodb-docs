@@ -19,6 +19,10 @@ const record = await collection.create(data: Omit<T, "id"> & { id?: ID }): Promi
 - Runs `onAfterCreate` plugin hooks
 - Emits a change event
 
+Generated IDs are strings. You may instead provide a string or numeric ID.
+Duplicate IDs and unique-index violations currently reject with a plain
+`Error`, not a dedicated duplicate-record error class.
+
 ```ts
 const task = await todos.create({ title: "Write docs" })
 console.log(task.id, task.title)
@@ -37,6 +41,11 @@ const all = await collection.getAll()
 const task = await todos.get(1)
 if (task) console.log(task.title)
 ```
+
+`createMany(data)` creates multiple records. The built-in IndexedDB and memory
+adapters perform it atomically; custom adapters without a native bulk-create
+implementation use sequential creates and may leave earlier records written if
+a later create fails.
 
 ## Update
 
@@ -63,8 +72,8 @@ await collection.deleteMany(ids: ID[])
 
 - Runs `onBeforeDelete` / `onAfterDelete` plugin hooks
 - Emits a change event for each deleted record
-- `delete` returns normally even if the record does not exist
-- `deleteMany` silently skips missing IDs
+- `delete` is a no-op if the record does not exist (a change event may still be emitted)
+- `deleteMany` skips missing IDs
 
 ## Upsert
 
@@ -115,3 +124,7 @@ const tasks = db.collection<Task>("todos")
 const item = await tasks.create({ title: "Typed" })
 // item.title is typed as string
 ```
+
+Collection names are checked against the schema at runtime, but the public
+string overload means they are not restricted to declared names at compile
+time.

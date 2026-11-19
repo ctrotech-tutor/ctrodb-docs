@@ -44,6 +44,9 @@ collection<T>(name: string): Collection<T>
 Returns a cached or new collection for the given name. Throws `ConnectionError{:ts}`
 if not connected.
 
+When a schema is configured, requesting a collection not declared in that
+schema throws `CollectionNotFoundError{:ts}`.
+
 ### transaction()
 
 ```ts
@@ -59,6 +62,16 @@ on(callback: (event: ChangeEvent) => void): () => void
 ```
 
 Subscribes to all change events. Returns an unsubscribe function.
+
+### onConnectionChange()
+
+```ts
+onConnectionChange(callback: (event: ConnectionChangeEvent) => void): () => void
+```
+
+Subscribes to IndexedDB lifecycle changes, including `versionchange` events
+when another context upgrades the same database. Returns an unsubscribe
+function.
 
 ### plugin()
 

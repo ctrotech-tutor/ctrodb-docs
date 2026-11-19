@@ -3,16 +3,16 @@ title: MemoryAdapter
 description: In-memory storage for Node.js, testing, and prototyping
 ---
 
-`MemoryAdapter` stores all data in JavaScript `Map` objects. Data is lost when
-the process exits or the page is reloaded. It is the default adapter in
-environments without IndexedDB (Node.js, Deno, CI, SSR).
+`MemoryAdapter` stores all data in JavaScript `Map` objects. Data is cleared
+when the database disconnects and is lost when the process exits or page
+reloads. It is the default adapter when `window.indexedDB` is unavailable.
 
 ## How it works
 
 - Each collection is a `Map<ID, Record>` — one map per collection name
 - A separate `Map<string, unknown>` holds metadata (schema version, etc.)
 - On `connect()`, collection maps are pre-created for every entry in
-  `schema.collections` — plugin stores are created lazily on first write
+  `schema.collections`
 - IDs are **not auto-generated** — the adapter requires an `id` field on every
   record. The `Collection` layer always provides one (via `crypto.randomUUID()`)
 - Records are stored as-is but `findAll()` and `findById()` return shallow
@@ -77,7 +77,7 @@ async scanIndex(collection, indexName, range, postFilters) {
   const all = await this.findAll(collection)
   let results = all
 
-  // Range filter (IDBKeyRange)
+  // Apply the storage-neutral QueryRange descriptor
   if (range) {
     results = results.filter((r) => {
       const val = r[indexName]
@@ -136,9 +136,8 @@ await db.transaction(async (ctx) => {
 // The create is rolled back — collection "todos" is unchanged
 ```
 
-The transaction context returns the raw adapter — you must pass the collection
-name to every method call. This differs from the IndexedDBAdapter, which
-returns a bound collection proxy.
+The transaction context exposes transaction-scoped collections, like the
+IndexedDB adapter. Use those scoped collections inside the callback.
 
 ## Limitations
 

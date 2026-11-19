@@ -17,13 +17,14 @@ adapter and everything still works.
 
 ## Auto-detection
 
-When no adapter is specified, ctrodb selects one automatically:
+When no adapter is specified, ctrodb selects one automatically. The runtime
+checks for `window.indexedDB`; environments without it use memory storage.
 
 ```ts
 const db = new Database({ name: "my-app" })
 
-// Browser with indexedDB     → IndexedDBAdapter
-// Node.js, Deno, or no IDB   → MemoryAdapter
+// window.indexedDB exists    → IndexedDBAdapter
+// Otherwise                  → MemoryAdapter
 ```
 
 The detection checks for `window.indexedDB` at runtime:
@@ -75,7 +76,8 @@ adapter.isConnected() // false
 ```
 
 The `Database` class manages this lifecycle automatically — you don't call
-`connect()` or `disconnect()` on the adapter directly.
+`connect()` or `disconnect()` on the adapter directly. Memory data is cleared
+on disconnect, so it is not suitable for persistence.
 
 ## StorageAdapter interface
 
@@ -89,6 +91,7 @@ interface StorageAdapter {
   connect(name: string, schema: SchemaConfig | null): Promise<void>
   disconnect(): Promise<void>
   isConnected(): boolean
+  setConnectionChangeHandler?(handler: (event: ConnectionChangeEvent) => void): void
 
   // Schema version (persisted in _ctrodb_meta store)
   getSchemaVersion(): Promise<number>
@@ -96,8 +99,12 @@ interface StorageAdapter {
 
   // CRUD
   create(collection: string, data: unknown): Promise<unknown>
+  createMany?(collection: string, records: unknown[]): Promise<unknown[]>
   findById(collection: string, id: ID): Promise<unknown>
+  findByIds?(collection: string, ids: ID[]): Promise<(unknown | undefined)[]>
   findAll(collection: string): Promise<unknown[]>
+  count?(collection: string): Promise<number>
+  hasIndex?(collection: string, indexName: string): boolean
   update(collection: string, id: ID, changes: unknown): Promise<unknown>
   delete(collection: string, id: ID): Promise<void>
   deleteMany(collection: string, ids: ID[]): Promise<void>
@@ -106,7 +113,7 @@ interface StorageAdapter {
   scanIndex(
     collection: string,
     indexName: string,
-    range: IDBKeyRange | undefined,
+    range: QueryRange | undefined,
     postFilters: QueryCondition[],
   ): Promise<unknown[]>
 
@@ -119,8 +126,11 @@ interface StorageAdapter {
 }
 ```
 
-All return types are `unknown` — the `Collection` layer casts them to the
-correct generic type.
+`createMany`, `findByIds`, `count`, and `hasIndex` are optional capabilities.
+When `createMany` is absent, ctrodb falls back to sequential creates, which
+cannot guarantee all-or-nothing behavior. The `QueryRange` passed to
+`scanIndex()` is storage-neutral and does not require the browser's
+`IDBKeyRange`.
 
 ## ID handling
 
@@ -169,21 +179,16 @@ interface SchemaConfig {
 ```
 
 The `IndexedDBAdapter` uses this to create object stores and indexes during
-migration. The `MemoryAdapter` pre-creates collection maps.
+version upgrades. Define the collections in your schema before connecting;
+the memory adapter pre-creates collection maps.
 
 ## Transaction API
 
 All adapters support transactions. If the transaction callback throws, all
 changes are rolled back.
 
-**Transaction context methods vary by adapter:**
-
-**Warning**: The `ctx.collection(name)` return type differs between adapters.
-See each adapter's page for the exact API.
-
-### IndexedDBAdapter
-
-Returns a bound collection proxy — method calls don't need the collection name:
+`ctx.collection(name)` returns a collection scoped to the current transaction.
+Use it for all reads and writes that must be atomic:
 
 ```ts
 await db.transaction(async (ctx) => {
@@ -195,23 +200,14 @@ await db.transaction(async (ctx) => {
 })
 ```
 
-### MemoryAdapter
-
-Returns the raw adapter — you must pass the collection name to every method:
-
-```ts
-await db.transaction(async (ctx) => {
-  const adapter = ctx.collection("todos") as MemoryAdapter
-  await adapter.create("todos", { id: "1", title: "A" })
-  const all = await adapter.findAll("todos")
-})
-```
+Do not use regular database collections or perform unrelated asynchronous
+work inside the callback. IndexedDB may automatically close a transaction
+while it is waiting on unrelated promises.
 
 ## scanIndex
 
-Both adapters implement `scanIndex()` for indexed lookups by field value.
-This powers the query planner's `index_scan` strategy and the sync engine's
-status-based queries.
+Adapters implement `scanIndex()` for indexed lookups by field value. This
+powers the query planner's `index_scan` strategy and internal indexed queries.
 
 **IndexedDBAdapter**: Uses native IDB indexes — fast, only returns matching
 records.
@@ -220,10 +216,12 @@ records.
 post-filter matching.
 
 ```ts
+import { equalityRange } from "ctrodb"
+
 const results = await adapter.scanIndex(
   "users",
   "email",
-  IDBKeyRange.only("alice@test.com"),
+  equalityRange("alice@test.com"),
   [],
 )
 ```

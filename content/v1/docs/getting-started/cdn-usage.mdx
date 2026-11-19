@@ -6,7 +6,7 @@ description: Use ctrodb directly in the browser via script tag
 ## Unpkg
 
 ```html
-<script src="https://unpkg.com/ctrodb@1.4.0/dist/index.global.js"></script>
+<script src="https://unpkg.com/ctrodb@1.13.2/dist/index.global.js"></script>
 <script>
   const { Database } = CtroDB
 
@@ -32,7 +32,7 @@ description: Use ctrodb directly in the browser via script tag
 ## jsDelivr
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/ctrodb@1.4.0/dist/index.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ctrodb@1.13.2/dist/index.global.js"></script>
 ```
 
 ## esm.sh (import maps)
@@ -43,7 +43,7 @@ For projects that use ES modules with import maps:
 <script type="importmap">
 {
   "imports": {
-    "ctrodb": "https://esm.sh/ctrodb@1.4.0"
+    "ctrodb": "https://esm.sh/ctrodb@1.13.2"
   }
 }
 </script>
@@ -59,9 +59,11 @@ await notes.create({ text: "Hello from esm.sh!" })
 
 ## What works
 
-- All features work from CDN
+- The core API is available from the `CtroDB` global
 - IndexedDB adapter works in all modern browsers
 - Memory adapter works everywhere
-- The full bundle is ~25 KB gzip
+
+The React bindings are a separate `ctrodb/react` module entry and are intended
+for module-based React applications, not the global script build.
 
 See the [CDN example](/docs/examples/cdn-todo) for a complete todo app.

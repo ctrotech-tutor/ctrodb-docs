@@ -3,7 +3,9 @@ title: Full-Text Search
 description: Token-based search across string fields
 ---
 
-The FTS plugin indexes string fields for fast search queries.
+The FTS plugin maintains an inverted index to accelerate tokenized `match()`
+queries over searchable fields. It is optional: core search behavior works
+without the plugin.
 
 ## Setup
 
@@ -36,9 +38,10 @@ The plugin stores a token-to-document mapping in a `_ctrodb_fts{:ts}` collection
 - Each token maps to the set of document IDs containing it
 - Tokens are lowercased, deduplicated, and filtered for stop words
 
-## Basic search (substring matching)
+## Substring search
 
-Without the FTS index, `.search(){:ts}` does case-insensitive substring matching:
+`.search(){:ts}` is a case-insensitive substring scan, with or without the FTS
+plugin. It does not use the inverted index:
 
 ```ts
 const results = await articles
@@ -47,7 +50,24 @@ const results = await articles
   .fetch()
 ```
 
-This checks if the `body` field contains the string "database schema" anywhere — it does **not** use the tokenized FTS index.
+This checks whether the `body` field contains the literal text
+"database schema".
+
+## Tokenized matching
+
+Use the query builder's `match()` method to search all schema `searchable`
+fields by default, or pass field names explicitly:
+
+```ts
+const results = await articles
+  .query()
+  .match("database schema", ["title", "body"])
+  .fetch()
+```
+
+Matching tokenizes the input, removes common stop words, and requires all
+remaining whole-word terms to match. The plugin accelerates this query; it is
+not required for the same matching semantics.
 
 ## Indexed search (FTSIndexer)
 
@@ -61,8 +81,8 @@ const ids = await indexer.search("articles", "database schema")
 // ids contains IDs of documents matching ALL tokens (AND logic)
 ```
 
-`FTSIndexer.search(){:ts}` tokenizes the query and returns only document IDs
-that contain every token. This is true tokenized AND search.
+`FTSIndexer.search(){:ts}` tokenizes the query and returns document IDs
+containing every non-stop-word token.
 
 ## Built-in stop words
 

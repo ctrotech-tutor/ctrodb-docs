@@ -10,16 +10,21 @@ You can access fields directly — no `.get("field")` calls needed.
 
 ```ts
 const user = await users.get(1)
-console.log(user.name)   // direct field access
-console.log(user.email)  // works for any field
+if (user) {
+  console.log(user.name)   // direct field access
+  console.log(user.email)  // works for any field
+}
 ```
 
 The model is a `Proxy{:js}` that forwards property access to the underlying data.
-Direct writes warn you to use `.update(){:ts}` instead.
+Direct writes are rejected; use `.update(){:ts}` to persist changes.
 
 ## Instance methods
 
 ```ts
+const user = await users.get(1)
+if (!user) throw new Error("User not found")
+
 await user.update({ name: "New name" })
 await user.delete()
 user.toJSON() // plain object copy
@@ -35,10 +40,27 @@ When the schema defines relations, the model auto-attaches lazy relation getters
 ```ts
 // Schema: { relations: { posts: { type: "has_many", ... } } }
 const user = await users.get(1)
-const posts = await user.posts.fetch()
+if (user) {
+  const posts = await user.posts.fetch()
+}
 ```
 
-Each relation getter returns a `QueryBuilder{:ts}` pre-filtered to match the relation.
+Each relation getter returns a `QueryBuilder{:ts}` pre-filtered to match the
+relation. A `belongs_to` getter is a query builder too, so use `.first()` to
+load the referenced model. Relation access does not check referential integrity.
+
+Use `load()` when you want the resolved related model or array directly rather
+than a query builder:
+
+```ts
+const post = await postsCollection.get("post-id")
+const user = await users.get(1)
+const author = post ? await post.load("author") : undefined
+const authoredPosts = user ? await user.load("posts") : []
+```
+
+`load("belongsTo" | "hasOne")` resolves to one model or `undefined`;
+`load("hasMany")` resolves to an array of models.
 
 ## id
 

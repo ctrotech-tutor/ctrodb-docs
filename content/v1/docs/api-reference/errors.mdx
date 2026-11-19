@@ -3,7 +3,8 @@ title: Errors
 description: Error classes
 ---
 
-All errors extend `CtrodbError{:ts}`, which extends `Error{:js}`.
+Database errors extend `CtrodbError{:ts}`, which extends `Error{:js}`.
+`SyncResponseValidationError` is a separate `Error` subclass.
 
 ```ts
 import {
@@ -14,6 +15,8 @@ import {
   SchemaError,
   ValidationError,
   QueryError,
+  StorageQuotaError,
+  SyncResponseValidationError,
 } from "ctrodb"
 ```
 
@@ -51,17 +54,31 @@ new ValidationError(collection, field, message, value?)
 
 Has `.field{:ts}`, `.collection{:ts}`, `.value{:ts}` properties.
 
-## Additional classes (not thrown by ctrodb)
+## CollectionNotFoundError
 
-These error classes are exported for use in your own code or plugins:
+Thrown when a schema-constrained database is asked for an undeclared
+collection.
 
-```ts
-new CollectionNotFoundError(name, availableCollections?)
-// 'Collection "users" not found. Available collections: todos, posts'
+## RecordNotFoundError
 
-new RecordNotFoundError(collection, id)
-// 'Record with id "42" not found in collection "todos".'
+Thrown by `Collection.update()` when the requested record does not exist.
+`Collection.delete()` is a no-op for a missing ID.
 
-new QueryError(message)
-// Query execution error.
-```
+## StorageQuotaError
+
+Represents a storage quota failure.
+
+## SyncResponseValidationError
+
+Thrown when a remote sync response does not match the expected push or pull
+response shape.
+
+## QueryError
+
+Exported for query-related errors, but not used for ordinary built-in query
+failures.
+
+## Duplicate IDs
+
+Duplicate IDs and unique-index violations currently reject with a plain
+`Error`; there is no dedicated duplicate-record error class.

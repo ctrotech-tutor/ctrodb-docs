@@ -5,6 +5,40 @@ description: Define the shape of your data
 
 A schema describes the collections, their fields, indexes, and relations.
 
+## Preserve schema types
+
+Use `defineSchema()` with `createDatabase()` to keep the schema's literal field
+types and infer collection records:
+
+```ts
+import { createDatabase, defineSchema } from "ctrodb"
+
+const schema = defineSchema({
+  version: 1,
+  collections: {
+    todos: {
+      fields: {
+        title: { type: "string", required: true },
+        done: { type: "boolean", default: false },
+      },
+    },
+  },
+})
+
+const db = createDatabase({ schema })
+const todos = db.collection("todos")
+const todo = await todos.create({ title: "Typed" })
+todo.title // string
+todo.done  // boolean | undefined for records predating the default
+```
+
+`defineSchema()` preserves TypeScript literal types. Collection names that
+match the schema are inferred, but the library also has a general string
+overload, so undeclared names are not guaranteed to be rejected by TypeScript.
+They are still checked at runtime when a schema is configured. Do not rely on
+schema construction to validate every relation target or unknown field-type
+string; cover those definitions in application tests.
+
 ## SchemaConfig
 
 ```ts
@@ -14,7 +48,9 @@ interface SchemaConfig {
 }
 ```
 
-`version{:ts}` must be a positive integer. `collections{:ts}` must have at least one entry.
+`version{:ts}` must be a positive integer. `collections{:ts}` should include
+the collections the application uses. IndexedDB uses the version to trigger
+object-store and index upgrades.
 
 ## CollectionSchema
 
@@ -33,7 +69,7 @@ interface CollectionSchema {
 |--------|------|-------------|
 | `type{:ts}` | `"string" \| "number" \| "boolean" \| "object" \| "array"{:ts}` | Data type |
 | `required{:ts}` | `boolean{:ts}` | Throw if missing |
-| `default{:ts}` | `unknown{:ts}` (functions supported at runtime) | Applied on create if field is undefined |
+| `default{:ts}` | `unknown{:ts}` or `() => unknown` | Applied when omitted or `undefined`; `null` is not replaced |
 | `min{:ts}` | `number{:ts}` | Minimum value (number fields) |
 | `max{:ts}` | `number{:ts}` | Maximum value (number fields) |
 | `maxLength{:ts}` | `number{:ts}` | Max string length |
@@ -68,8 +104,10 @@ indexes: [
 ]
 ```
 
-Indexes speed up queries using the operator `==`, `>`, `<`, `>=`, `<=`.
-Unique indexes prevent duplicates.
+Indexes can accelerate matching a single field for `==`, `>`, `<`, `>=`, and
+`<=`. The query planner chooses at most one suitable scalar index and applies
+remaining predicates as filters; compound-index planning is not supported.
+Unique indexes reject duplicate values at the storage layer.
 
 ## Relations
 
@@ -81,7 +119,9 @@ relations: {
 }
 ```
 
-Lazy relation getters and eager loading are built into the core — no plugin required.
+Lazy relation getters and eager loading are built into the core — no plugin is
+required. Relation declarations do not enforce foreign-key integrity, and
+schema setup does not verify that relation targets exist.
 
 ## Schema methods
 
@@ -93,15 +133,18 @@ schema.applyDefaults("todos", data)
 schema.validate("todos", data)
 ```
 
-Built-in validation covers:
+Core validation runs without the validation plugin and covers:
 
 - Required fields
 - Type checking (including array item types)
 - String max length
 - Number min/max
-- Email and URL format
-- Custom regex patterns
+- Email and URL format and regular-expression patterns
 - Unknown field rejection
+
+The `validationPlugin()` adds extra built-in and custom rules; it is not
+required for the schema rules above. Defaults are applied during writes, not
+retroactively to existing records.
 
 ```ts
 class SchemaError extends CtrodbError {}

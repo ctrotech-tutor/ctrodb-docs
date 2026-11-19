@@ -1,6 +1,6 @@
 # ctrodb docs
 
-Documentation site for [ctrodb](https://github.com/ctrotech-tutor/ctrodb) — a reactive, schema-driven client-side database for TypeScript.
+Documentation site for [ctrodb](https://github.com/ctrotech-tutor/ctrodb) — a reactive, schema-driven client-side database for TypeScript. The current documented library release is **1.13.2**.
 
 Built with [Next.js](https://nextjs.org), [next-mdx-remote](https://github.com/hashicorp/next-mdx-remote), and [shadcn/ui](https://ui.shadcn.com).
 
@@ -17,9 +17,9 @@ Built with [Next.js](https://nextjs.org), [next-mdx-remote](https://github.com/h
 
 ```
 content/
-  docs/        ← Documentation pages (33 MDX files)
+  v1/docs/     ← Version 1 documentation pages (50 MDX files)
     meta.json  ← Sidebar navigation order
-  blog/        ← Blog posts (5 MDX files)
+  blog/        ← Blog posts (13 MDX files)
 ```
 
 ## Development
@@ -36,7 +36,7 @@ Open [http://localhost:3000](http://localhost:3000).
 npm run build
 ```
 
-Generates ~45 static pages (SSG) + OG image route (edge).
+Generates the static documentation and blog pages, plus the Open Graph image route.
 
 ## Deployment
 

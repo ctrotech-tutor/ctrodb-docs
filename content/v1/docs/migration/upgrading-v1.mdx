@@ -1,0 +1,55 @@
+---
+title: Upgrading to ctrodb 1.13.2
+description: Current-v1 upgrade checklist and migration notes
+---
+
+This guide covers upgrading an application to the currently documented
+ctrodb v1 release, **1.13.2**. The [alpha migration guide](./from-alpha)
+only describes the historical transition to v1.0.0. For the version-by-version
+change list, consult the library's
+[CHANGELOG](https://github.com/ctrotech-tutor/ctrodb/blob/main/CHANGELOG.md).
+
+## Update the package
+
+```bash
+npm install ctrodb@^1.13.2
+```
+
+ctrodb supports Node.js 20 and newer. React bindings are available from
+`ctrodb/react` and require React 18 or newer as an optional peer dependency.
+
+## Review application behavior
+
+- **Persistence:** the automatic adapter uses IndexedDB when
+  `window.indexedDB` exists and memory otherwise. Memory data is volatile and
+  is cleared on disconnect.
+- **Relations:** relation getters and eager loading are built into the core;
+  `relationsPlugin()` is not required. Relation declarations do not enforce
+  foreign-key integrity.
+- **Validation:** schema validation runs without `validationPlugin()`. The
+  plugin adds its own extra built-in and custom rules.
+- **Search:** `.search()` is a case-insensitive substring scan. `.match()`
+  performs tokenized AND matching over searchable fields; the FTS plugin can
+  accelerate it but is not required for correct results.
+- **React:** prefer `<DatabaseProvider>` over the deprecated global
+  `setDefaultDatabase()` and `getDb()` helpers, which are planned for removal
+  in v2.
+
+## Evolve persisted data deliberately
+
+For IndexedDB, increment `schema.version` when stores or indexes need an
+upgrade. ctrodb creates missing object stores and indexes but does not provide
+a user migration callback, transform existing records, or delete stores that
+were removed from the schema. Backfill or transform records with an explicit
+application migration, and test it against a copy of representative data.
+
+Defaults apply on create/update when a field is omitted or `undefined`; they
+do not backfill existing records and do not replace `null`. Adding a required
+field therefore needs an explicit backfill before relying on the new
+constraint.
+
+## Verify the upgrade
+
+Test the application with both its persistent browser adapter and any
+memory-backed Node/test configuration. Check schema upgrades, query results,
+relations, and sync behavior against the exact release notes before deploying.

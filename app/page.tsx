@@ -23,8 +23,8 @@ import { CodeBlock } from "@/components/code-block";
 const features = [
   {
     icon: Database,
-    title: "Zero dependencies",
-    description: "Pure TypeScript. No runtime deps, no bloat.",
+    title: "Zero runtime dependencies",
+    description: "Pure TypeScript with no required runtime dependencies.",
   },
   {
     icon: Zap,
@@ -51,16 +51,16 @@ const features = [
   },
   {
     icon: GitFork,
-    title: "Two adapters",
+    title: "Built-in adapters",
     description: "Memory for Node/testing, IndexedDB for browsers. Same API.",
   },
 ];
 
 const stats = [
-  { label: "Tests", value: "190+" },
-  { label: "Dependencies", value: "zero" },
-  { label: "Bundle size", value: "~25 KB" },
-  { label: "TypeScript", value: "100%" },
+  { label: "Tests", value: "715+" },
+  { label: "Runtime deps", value: "0" },
+  { label: "Node.js", value: "20+" },
+  { label: "React peer", value: "18+" },
 ];
 
 export default function Home() {
@@ -95,7 +95,7 @@ export default function Home() {
               variant="outline"
               className="mb-6 border-primary/30 bg-primary/5 px-3 py-1 text-xs text-primary"
             >
-              v1.0.0 &middot; Stable
+              v1.13.2 &middot; Current
             </Badge>
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
               Reactive client-side database

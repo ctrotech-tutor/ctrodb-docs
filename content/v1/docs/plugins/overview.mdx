@@ -3,7 +3,10 @@ title: Plugin Overview
 description: Extend ctrodb with lifecycle hooks
 ---
 
-Plugins hook into database and collection lifecycle events.
+Plugins hook into database and collection lifecycle events. Core schema
+validation and the built-in relation APIs work without their corresponding
+plugins; those plugins add optional capabilities rather than enabling core
+behavior.
 
 ## Plugin interface
 
@@ -12,16 +15,28 @@ interface CtroDBPlugin {
   name: string
   version?: string
   storeNames?: (string | PluginStoreConfig)[]
-  onDatabaseInit?(db: Database): void
-  onCollectionInit?(collection: Collection): void
-  onBeforeCreate?(collection: string, data: unknown): unknown
-  onAfterCreate?(collection: string, record: unknown): void
-  onBeforeUpdate?(collection: string, id: ID, changes: unknown): unknown
-  onAfterUpdate?(collection: string, id: ID, record: unknown, oldRecord?: unknown): void
-  onBeforeDelete?(collection: string, id: ID): void
-  onAfterDelete?(collection: string, id: ID, oldRecord?: unknown): void
+  onDatabaseInit?(db: unknown): void | Promise<void>
+  onDatabaseDestroy?(db: unknown): void | Promise<void>
+  onCollectionInit?(collection: unknown): void
+  onBeforeCreate?(collection: string, data: unknown, context?: WriteContext): unknown
+  onAfterCreate?(collection: string, record: unknown, context?: WriteContext): void
+  onAfterCreateMany?(collection: string, records: unknown[], context?: WriteContext): void
+  onBeforeUpdate?(collection: string, id: ID, changes: unknown, context?: WriteContext): unknown
+  onAfterUpdate?(collection: string, id: ID, record: unknown, oldRecord?: unknown, context?: WriteContext): void
+  onBeforeDelete?(collection: string, id: ID, context?: WriteContext): void
+  onAfterDelete?(collection: string, id: ID, oldRecord?: unknown, context?: WriteContext): void
 }
 ```
+
+Hooks may be asynchronous; ctrodb awaits them. Before-hooks run before a write
+and may transform data. After-hook failures are logged and do not roll back a
+write that has already been committed.
+
+`onDatabaseDestroy()` runs when `db.disconnect()` is called. Hook contexts
+include `origin: "local" | "remote"`; the sync engine uses `"remote"` for
+incoming writes. For `createMany()`, a plugin implementing
+`onAfterCreateMany()` receives the batch once instead of receiving an
+`onAfterCreate()` call for every record.
 
 ## Hook execution order
 
@@ -32,20 +47,20 @@ For a `create()` call:
 3. Schema validation
 4. `onBeforeCreate` — plugins run in order, each can modify data
 5. Adapter creates record
-6. `onAfterCreate` — plugins run in order
+6. `onAfterCreate` — plugins run in order after the write succeeds
 
 For `update()`:
 
 1. `onBeforeUpdate` — plugins can modify changes
 2. Schema validation (merged with existing)
 3. Adapter updates record
-4. `onAfterUpdate`
+4. `onAfterUpdate` — after the write succeeds
 
 For `delete()`:
 
 1. `onBeforeDelete`
 2. Adapter deletes record
-3. `onAfterDelete`
+3. `onAfterDelete` — after the write succeeds
 
 ## Return values
 
@@ -55,14 +70,13 @@ if not `undefined{:js}`. This lets plugins transform data before it is stored.
 ## Using plugins
 
 ```ts
-import { Database } from "ctrodb"
-import { ftsPlugin, relationsPlugin, validationPlugin } from "ctrodb"
+import { Database, ftsPlugin, relationsPlugin, validationPlugin } from "ctrodb"
 
 const db = new Database({
   schema: { ... },
   plugins: [
     ftsPlugin(),
-    relationsPlugin(),
+    relationsPlugin(), // optional; built-in relations work without it
     validationPlugin(),
   ],
 })

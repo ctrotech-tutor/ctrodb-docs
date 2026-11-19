@@ -31,7 +31,8 @@ const db = new Database({
 await db.connect()
 ```
 
-This initializes the storage adapter. By default it picks IndexedDB in browsers and memory in Node.
+This initializes the adapter. By default, ctrodb uses IndexedDB when
+`window.indexedDB` is available and memory otherwise. Memory data is volatile.
 
 ## 3. Insert data
 
@@ -60,8 +61,8 @@ console.log(results.length) // 1
 ## 5. Update and delete
 
 ```ts
-task.title = "Master ctrodb"   // warns — use update()
 await task.update({ done: true })
+console.log(task.done) // true
 
 await task.delete()
 ```

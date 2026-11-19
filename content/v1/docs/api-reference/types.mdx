@@ -1,6 +1,6 @@
 ---
 title: Type Reference
-description: All exported TypeScript types
+description: Core, adapter, plugin, and synchronization TypeScript types
 ---
 
 ```ts
@@ -18,6 +18,8 @@ import type {
   QueryOperator,
   QueryCondition,
   QueryStrategy,
+  QueryKey,
+  QueryRange,
   SortSpec,
   QueryPlan,
   ChangeType,
@@ -26,8 +28,24 @@ import type {
   TransactionContext,
   StorageAdapter,
   LogLevel,
+  WriteContext,
+  WriteOrigin,
+  ConnectionChangeEvent,
+  SyncPluginConfig,
+  SyncStatus,
+  SyncChangeRecord,
+  SyncConflict,
+  ConflictResolution,
+  SyncTransport,
+  SyncPushResult,
+  SyncPullResult,
+  SyncResponseValidationError,
 } from "ctrodb"
 ```
+
+React hook types are available from the `ctrodb/react` entry point. The
+`logLevel` option is accepted by `DatabaseConfig` but is currently reserved
+and does not change library logging.
 
 ## ID
 
@@ -128,10 +146,11 @@ type QueryOperator = "==" | "!=" | ">" | "<" | ">=" | "<="
 
 ```ts
 interface QueryCondition {
-  type: "where" | "search"
+  type: "where" | "search" | "match"
   field: string
   op?: QueryOperator
   value: unknown
+  fields?: string[]
 }
 ```
 
@@ -140,6 +159,22 @@ interface QueryCondition {
 ```ts
 type QueryStrategy = "index_scan" | "full_scan" | "id_lookup"
 ```
+
+## QueryRange
+
+```ts
+type QueryKey = string | number | Date
+
+interface QueryRange {
+  readonly lower?: QueryKey
+  readonly upper?: QueryKey
+  readonly lowerOpen: boolean
+  readonly upperOpen: boolean
+}
+```
+
+This storage-neutral range descriptor lets adapters implement indexed
+lookups without depending on the browser's `IDBKeyRange` API.
 
 ## SortSpec
 
@@ -156,7 +191,7 @@ interface SortSpec {
 interface QueryPlan {
   strategy: QueryStrategy
   indexName?: string
-  range?: IDBKeyRange
+  range?: QueryRange
   primaryConditions: QueryCondition[]
   postFilterConditions: QueryCondition[]
   sort?: SortSpec
@@ -192,22 +227,46 @@ interface CtroDBPlugin {
   name: string
   version?: string
   storeNames?: (string | PluginStoreConfig)[]
-  onDatabaseInit?(db: unknown): void
+  onDatabaseInit?(db: unknown): void | Promise<void>
+  onDatabaseDestroy?(db: unknown): void | Promise<void>
   onCollectionInit?(collection: unknown): void
-  onBeforeCreate?(collection: string, data: unknown): unknown
-  onAfterCreate?(collection: string, record: unknown): void
-  onBeforeUpdate?(collection: string, id: ID, changes: unknown): unknown
-  onAfterUpdate?(collection: string, id: ID, record: unknown, oldRecord?: unknown): void
-  onBeforeDelete?(collection: string, id: ID): void
-  onAfterDelete?(collection: string, id: ID, oldRecord?: unknown): void
+  onBeforeCreate?(collection: string, data: unknown, context?: WriteContext): unknown
+  onAfterCreate?(collection: string, record: unknown, context?: WriteContext): void
+  onAfterCreateMany?(collection: string, records: unknown[], context?: WriteContext): void
+  onBeforeUpdate?(collection: string, id: ID, changes: unknown, context?: WriteContext): unknown
+  onAfterUpdate?(collection: string, id: ID, record: unknown, oldRecord?: unknown, context?: WriteContext): void
+  onBeforeDelete?(collection: string, id: ID, context?: WriteContext): void
+  onAfterDelete?(collection: string, id: ID, oldRecord?: unknown, context?: WriteContext): void
 }
 ```
+
+`onDatabaseDestroy` is called when the database disconnects. Hook callbacks may
+return promises; ctrodb awaits them.
+
+## WriteContext
+
+```ts
+type WriteOrigin = "local" | "remote"
+
+interface WriteContext {
+  readonly origin: WriteOrigin
+}
+```
+
+Write hooks receive the context as their final argument. Sync-applied writes
+use `"remote"`; ordinary collection writes use `"local"`.
 
 ## TransactionContext
 
 ```ts
 interface TransactionContext {
-  collection(name: string): unknown
+  collection(name: string): {
+    create(data: Record<string, unknown>): Promise<Record<string, unknown>>
+    findById(id: ID): Promise<Record<string, unknown> | undefined>
+    findAll(): Promise<Record<string, unknown>[]>
+    update(id: ID, changes: Record<string, unknown>): Promise<Record<string, unknown>>
+    delete(id: ID): Promise<void>
+  }
 }
 ```
 
@@ -219,15 +278,20 @@ interface StorageAdapter {
   connect(name: string, schema: SchemaConfig | null): Promise<void>
   disconnect(): Promise<void>
   isConnected(): boolean
+  setConnectionChangeHandler?(handler: (event: ConnectionChangeEvent) => void): void
   getSchemaVersion(): Promise<number>
   setSchemaVersion(version: number): Promise<void>
   create(collection: string, data: unknown): Promise<unknown>
+  createMany?(collection: string, records: unknown[]): Promise<unknown[]>
   findById(collection: string, id: ID): Promise<unknown>
+  findByIds?(collection: string, ids: ID[]): Promise<(unknown | undefined)[]>
   findAll(collection: string): Promise<unknown[]>
+  count?(collection: string): Promise<number>
+  hasIndex?(collection: string, indexName: string): boolean
   update(collection: string, id: ID, changes: unknown): Promise<unknown>
   delete(collection: string, id: ID): Promise<void>
   deleteMany(collection: string, ids: ID[]): Promise<void>
-  scanIndex(collection: string, indexName: string, range: IDBKeyRange | undefined, postFilters: QueryCondition[]): Promise<unknown[]>
+  scanIndex(collection: string, indexName: string, range: QueryRange | undefined, postFilters: QueryCondition[]): Promise<unknown[]>
   transaction<T>(fn: (ctx: TransactionContext) => Promise<T>): Promise<T>
   getMetadata(key: string): Promise<unknown>
   setMetadata(key: string, value: unknown): Promise<void>

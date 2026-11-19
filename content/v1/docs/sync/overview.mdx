@@ -3,10 +3,11 @@ title: Sync Overview
 description: Offline-first synchronization for ctrodb
 ---
 
-The sync engine enables offline-first data synchronization between local
-IndexedDB/Memory storage and a remote server. It tracks every local change,
-pushes to the server, pulls remote changes, and resolves conflicts — all
-with automatic retry and exponential backoff.
+The sync plugin tracks local collection changes, pushes them to a remote
+transport, pulls remote changes, and resolves push conflicts. Local writes are
+available before synchronization completes. The engine retries eligible
+failures with exponential backoff; use IndexedDB when the queue must survive
+browser reloads because memory storage is volatile.
 
 ## Architecture
 
@@ -45,7 +46,7 @@ A single sync cycle runs:
 1. **Push** — sends pending & failed local changes to the server
 2. **Resolve conflicts** — applies conflict strategy to any push conflicts
 3. **Pull** — fetches remote changes since last cursor
-4. **Cleanup** — removes committed records from the sync store
+4. **Cleanup** — removes committed records from the sync queue
 
 ## Sync states
 
@@ -55,7 +56,7 @@ Each tracked change moves through these states:
 pending ──▶ syncing ──▶ committed ──▶ (deleted)
                  │                        │
                  ▼                        ▼
-              failed ◀──── (retry)    (cleaned up on next sync)
+              failed ◀──── (retry)    (removed after successful sync)
 ```
 
 - `pending` — waiting to be pushed
@@ -79,9 +80,7 @@ const db = new Database({
   },
   plugins: [
     syncPlugin({
-      transport: new HttpTransport({
-        url: "https://api.example.com/sync",
-      }),
+      transport: new HttpTransport({ url: "https://api.example.com/sync" }),
       autoSync: true,
     }),
   ],
@@ -89,7 +88,8 @@ const db = new Database({
 
 await db.connect()
 
-// One-shot sync
+// A transport failure updates sync status and emits an event; sync() does
+// not reject for ordinary transport errors.
 await db.sync()
 
 // Listen for sync events
@@ -108,7 +108,7 @@ const failed = await db.getFailedCount()
 ## Page structure
 
 - [Change Tracking](/docs/sync/change-tracking) — how local changes are recorded
-- [Sync Engine](/docs/sync/sync-engine) — lifecycle, auto-sync, backoff, circuit breaker
+- [Sync Engine](/docs/sync/sync-engine) — lifecycle, queue states, and configuration
 - [Conflict Resolution](/docs/sync/conflict-resolution) — strategies and custom resolvers
 - [Transports](/docs/sync/transports) — HTTP, WebSocket, custom transports
 - [DevTools](/docs/sync/devtools) — inspect queue, retry failed, event log
